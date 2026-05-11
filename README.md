@@ -17,15 +17,26 @@ project-specific agent instructions.
 
 ## Purpose
 
-This repository keeps a reusable library of agent-instruction templates. It is
-designed for people who want one canonical global policy in `${HOME}/AGENTS.md`
-and smaller project overlays that can be merged into each project.
+This repository keeps reusable agent-instruction templates for developers who
+want consistent agent behavior without copying the same rules into every
+project by hand. It is built around one canonical global policy in
+`${HOME}/AGENTS.md` plus smaller project-type overlays that can be merged into
+each repository.
 
 The repository supports two recurring workflows:
 
-- Initialize or refresh a project `AGENTS.md` from curated templates.
-- Mine existing project `AGENTS.md` files and promote reusable rules back into
-  the curated template library.
+1. **Initialize or refresh a project's agent instructions from curated templates.**
+  This gives new projects a useful baseline quickly: global policy reference,
+  detected project-type guidance, validation rules, and a preserved local
+  section for project-specific rules.
+
+2. **Mine existing project instruction files and promote reusable lessons back into
+  the template library.** This keeps templates improving as your real project
+  rules evolve instead of letting good instructions stay trapped in one repo.
+
+The standard output is `AGENTS.md`, which is the portable default used by this
+repository. When needed, the same templates can generate agent-specific files
+such as `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md`.
 
 ## Repository Layout
 
