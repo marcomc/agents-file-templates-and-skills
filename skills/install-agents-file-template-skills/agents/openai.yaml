@@ -1,0 +1,4 @@
+---
+display_name: Install Agents File Template Skills
+short_description: Install this repo's skills into local agent directories.
+default_prompt: Use $install-agents-file-template-skills to install these template skills for my local agents.

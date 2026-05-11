@@ -1,0 +1,164 @@
+---
+version: 1
+
+placeholders:
+  HOME: "${HOME}"
+  USER_NAME: "${USER_NAME}"
+  USER_WORKSPACE_ROOT: "${USER_WORKSPACE_ROOT}"
+  GLOBAL_AGENTS_PATH: "${HOME}/AGENTS.md"
+  MARKDOWNLINT_CONFIG: "${HOME}/.markdownlint.json"
+  OBSIDIAN_VAULT_PATH: "${OBSIDIAN_VAULT_PATH}"
+  PRIMARY_DOMAIN: "${PRIMARY_DOMAIN}"
+  AUTHORIZED_WORK_CONTEXT: "${AUTHORIZED_WORK_CONTEXT}"
+  PROJECT_NAME: "${PROJECT_NAME}"
+  PROJECT_DESCRIPTION: "${PROJECT_DESCRIPTION}"
+
+scan_defaults:
+  max_depth: 2
+  ignored_dirs:
+    - .git
+    - .hg
+    - .svn
+    - .venv
+    - node_modules
+    - vendor
+    - dist
+    - build
+    - .work
+    - .my127ws
+
+merge:
+  always_include:
+    - generic-development
+  preserve_local_markers:
+    begin: "<!-- BEGIN PROJECT LOCAL -->"
+    end: "<!-- END PROJECT LOCAL -->"
+
+global_template:
+  id: global
+  path: templates/global/AGENTS.md
+
+project_types:
+  - id: generic-development
+    path: templates/project-types/generic-development/AGENTS.md
+    detect:
+      file_globs:
+        - README.md
+        - .gitignore
+  - id: python
+    path: templates/project-types/python/AGENTS.md
+    detect:
+      file_globs:
+        - pyproject.toml
+        - requirements*.txt
+        - setup.py
+        - setup.cfg
+        - "**/*.py"
+  - id: bash
+    path: templates/project-types/bash/AGENTS.md
+    detect:
+      file_globs:
+        - "**/*.sh"
+        - scripts/*
+  - id: web
+    path: templates/project-types/web/AGENTS.md
+    detect:
+      file_globs:
+        - package.json
+        - pnpm-lock.yaml
+        - vite.config.*
+        - next.config.*
+        - src/**/*.tsx
+        - src/**/*.jsx
+  - id: ansible
+    path: templates/project-types/ansible/AGENTS.md
+    detect:
+      file_globs:
+        - ansible.cfg
+        - ansible/**/*.yml
+        - playbook.yml
+        - roles/*/tasks/*.yml
+  - id: workspace
+    path: templates/project-types/workspace/AGENTS.md
+    detect:
+      file_globs:
+        - workspace.yml
+        - tools/workspace/**
+        - .my127ws/**
+  - id: docker
+    path: templates/project-types/docker/AGENTS.md
+    detect:
+      file_globs:
+        - Dockerfile
+        - "**/Dockerfile"
+        - docker-compose.yml
+        - compose.yml
+  - id: cli
+    path: templates/project-types/cli/AGENTS.md
+    detect:
+      file_globs:
+        - pyproject.toml
+        - package.json
+        - bin/*
+        - src/**/__main__.py
+  - id: macos
+    path: templates/project-types/macos/AGENTS.md
+    detect:
+      file_globs:
+        - "*.xcodeproj"
+        - Package.swift
+        - "**/*.swift"
+        - "*.scpt"
+  - id: docs
+    path: templates/project-types/docs/AGENTS.md
+    detect:
+      file_globs:
+        - docs/**
+        - "*.md"
+  - id: raspberry-pi
+    path: templates/project-types/raspberry-pi/AGENTS.md
+    detect:
+      content_markers:
+        - raspberry pi
+        - raspbian
+        - gpio
+  - id: home-assistant
+    path: templates/project-types/home-assistant/AGENTS.md
+    detect:
+      content_markers:
+        - home assistant
+        - hass
+  - id: hardware-device
+    path: templates/project-types/hardware-device/AGENTS.md
+    detect:
+      content_markers:
+        - firmware
+        - telemetry
+        - owned hardware
+        - device maintenance
+  - id: github-release
+    path: templates/project-types/github-release/AGENTS.md
+    detect:
+      file_globs:
+        - CHANGELOG.md
+        - .github/workflows/*.yml
+      content_markers:
+        - github release
+        - changelog
+
+privacy:
+  block_patterns:
+    - "/Users/[A-Za-z0-9._-]+"
+    - "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+    - "replace-me-private-domain\\.example"
+    - "192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}"
+    - "10\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+    - "172\\.(1[6-9]|2[0-9]|3[0-1])\\.[0-9]{1,3}\\.[0-9]{1,3}"
+  placeholder_required_for:
+    - home directories
+    - domains
+    - hostnames
+    - private IP addresses
+    - account identifiers
+    - tokens
+    - passwords
