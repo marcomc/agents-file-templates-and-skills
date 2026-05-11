@@ -6,7 +6,7 @@ description: Use when initializing or refreshing project AI-agent instruction fi
 # Init Agents File
 
 Use this skill to create or refresh a project AI-agent instruction file from an
-`agents-file-templates` repository.
+`agents-file-templates-and-skills` repository.
 
 This skill is meant to be invoked through the active coding agent. The bundled
 Python script is the deterministic helper to run after deciding the target
@@ -33,14 +33,14 @@ The script preserves content between:
 Manual fallback dry run for the current project:
 
 ```bash
-python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
   --project .
 ```
 
 Manual fallback apply after review:
 
 ```bash
-python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
   --project . \
   --apply
 ```
@@ -48,7 +48,7 @@ python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agen
 Generate an agent-specific instruction filename:
 
 ```bash
-python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
   --project . \
   --agent claude \
   --output-mode specific \
@@ -58,7 +58,7 @@ python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agen
 Force project types:
 
 ```bash
-python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
   --project . \
   --types python,ansible,workspace
 ```

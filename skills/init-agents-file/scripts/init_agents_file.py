@@ -151,7 +151,7 @@ def render(project: Path, template_repo: Path, forced_types: list[str], pairs: l
     output = [
         f"# {output_name} Instructions",
         "",
-        "<!-- generated-by: agents-file-templates/init-agents-file -->",
+        "<!-- generated-by: agents-file-templates-and-skills/init-agents-file -->",
         f"<!-- generated-date: {values['GENERATED_DATE']} -->",
         "",
         f"Follow `{values['GLOBAL_AGENTS_PATH']}` for canonical user-wide policy.",
@@ -227,12 +227,13 @@ def default_template_repo(project: Path) -> Path:
         if (candidate / "templates.yml").exists() and (candidate / "templates").is_dir():
             return candidate
 
-    candidate = Path.home() / "Development" / "agents-file-templates"
-    if candidate.exists():
-        return candidate
+    for name in ("agents-file-templates-and-skills", "agents-file-templates"):
+        candidate = Path.home() / "Development" / name
+        if candidate.exists():
+            return candidate
 
     raise SystemExit(
-        "Could not find agents-file-templates. Pass --template-repo or set AGENTS_TEMPLATE_REPO."
+        "Could not find agents-file-templates-and-skills. Pass --template-repo or set AGENTS_TEMPLATE_REPO."
     )
 
 

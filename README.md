@@ -1,7 +1,7 @@
-# Agents File Templates
+# AGENTS File Templates and Skills
 
-Reusable `AGENTS.md` templates and skills for creating and maintaining
-project-specific agent instructions.
+Reusable `AGENTS.md` templates and skills for creating, maintaining, and
+improving project-specific agent instructions.
 
 ## Table of Contents
 
@@ -80,8 +80,8 @@ must not be committed.
 Clone the repository, then install the skills into the agents you use:
 
 ```bash
-git clone <REPOSITORY_URL> agents-file-templates
-cd agents-file-templates
+git clone <REPOSITORY_URL> agents-file-templates-and-skills
+cd agents-file-templates-and-skills
 make install AGENTS="openai claude opencode"
 ```
 

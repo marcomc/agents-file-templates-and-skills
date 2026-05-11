@@ -83,7 +83,7 @@ def default_template_repo() -> Path:
             return candidate.resolve()
 
     raise SystemExit(
-        "Could not find agents-file-templates. Pass --template-repo or set AGENTS_TEMPLATE_REPO."
+        "Could not find agents-file-templates-and-skills. Pass --template-repo or set AGENTS_TEMPLATE_REPO."
     )
 
 

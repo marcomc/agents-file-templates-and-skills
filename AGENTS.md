@@ -1,13 +1,13 @@
 # AGENTS.md Instructions
 
-<!-- generated-by: agents-file-templates/init-agents-file -->
+<!-- generated-by: agents-file-templates-and-skills/init-agents-file -->
 <!-- generated-date: 2026-05-11 -->
 
 Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_scan: allow -->
 
 ## Project Context
 
-- Project: `agents-file-templates`
+- Project: `agents-file-templates-and-skills`
 - Description: Reusable AGENTS.md template and skill repository
 
 ## Project-Type Overlays

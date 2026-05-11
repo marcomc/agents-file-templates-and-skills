@@ -146,7 +146,7 @@ find_repo() {
     candidate=$(parent_dir "${candidate}")
   done
 
-  echo "Could not find agents-file-templates. Run from the repo or set AGENTS_TEMPLATE_REPO." >&2
+  echo "Could not find agents-file-templates-and-skills. Run from the repo or set AGENTS_TEMPLATE_REPO." >&2
   exit 1
 }
 
