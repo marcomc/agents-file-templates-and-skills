@@ -17,3 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   OpenCode, and OpenAI/Codex conventions.
 - `make install` and `make uninstall` targets backed by a shell installer for
   copying or symlinking skills into local agent skill directories.
+
+### Fixed
+
+- Preserve local sections from the selected agent-specific output file when
+  refreshing generated instructions.
+- Include shell scripts in the publication privacy scan.

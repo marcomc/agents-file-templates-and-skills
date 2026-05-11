@@ -22,7 +22,7 @@ DEFAULT_PATTERNS = {
     ),
 }
 
-TEXT_SUFFIXES = {".md", ".yml", ".yaml", ".py", ".txt"}
+TEXT_SUFFIXES = {".md", ".yml", ".yaml", ".py", ".sh", ".txt"}
 SKIP_DIRS = {".git", ".work", "__pycache__"}
 
 
@@ -71,4 +71,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

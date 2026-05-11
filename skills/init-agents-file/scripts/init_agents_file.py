@@ -184,7 +184,7 @@ def render(project: Path, template_repo: Path, forced_types: list[str], pairs: l
             ]
         )
 
-    local = existing_local_section(project / "AGENTS.md")
+    local = existing_local_section(project / output_name)
     output.extend(
         [
             "## Project Local Rules",
