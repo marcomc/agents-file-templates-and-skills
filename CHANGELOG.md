@@ -15,5 +15,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT license.
 - Multi-agent instruction-file support for Claude Code, GitHub Copilot, Gemini,
   OpenCode, and OpenAI/Codex conventions.
-- Skill installer for copying or symlinking this repository's skills into local
-  agent skill directories.
+- `make install` and `make uninstall` targets backed by a shell installer for
+  copying or symlinking skills into local agent skill directories.

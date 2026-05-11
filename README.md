@@ -34,10 +34,11 @@ The repository supports two recurring workflows:
 ├── README.md
 ├── TODO.md
 ├── templates.yml
+├── Makefile
 ├── scripts/
+│   ├── install_agent_template_skills.sh
 │   └── privacy_scan.py
 ├── skills/
-│   ├── install-agents-file-template-skills/
 │   ├── init-agents-file/
 │   └── update-agents-file-templates/
 └── templates/
@@ -70,16 +71,22 @@ Clone the repository, then install the skills into the agents you use:
 ```bash
 git clone <REPOSITORY_URL> agents-file-templates
 cd agents-file-templates
-python3 skills/install-agents-file-template-skills/scripts/install_agent_template_skills.py \
-  --agent openai \
-  --agent claude \
-  --agent opencode \
-  --apply
+make install AGENTS="openai claude opencode"
 ```
 
 By default, the installer copies skills into each agent's skill directory. Add
 `--mode symlink` if you want each installed skill to point back to this central
-repository instead.
+repository instead:
+
+```bash
+make install-symlink AGENTS="openai claude"
+```
+
+Remove installed skills with:
+
+```bash
+make uninstall AGENTS="openai claude"
+```
 
 After installation, the normal workflow is to ask your coding agent to use the
 skill from inside a project. For example:
@@ -132,15 +139,6 @@ settings, or their own agent config formats rather than a shared metadata file.
 This repository keeps `SKILL.md` as canonical and adds product-specific adapters
 only when a product has a real adapter convention.
 
-### `install-agents-file-template-skills`
-
-Use this skill to install or symlink this repository's skills into local agent
-skill directories. It supports multiple agents in one run and reports when an
-agent uses instruction files instead of portable skill directories. The
-installer writes a local `config/template_repo_path.txt` into installed skill
-copies so the skills can find this template repository later without users
-exporting environment variables.
-
 ### `init-agents-file`
 
 Use this skill to create or refresh a project instruction file. It detects
@@ -160,6 +158,23 @@ Use this skill to update curated templates over time. It supports:
 
 Mining creates ignored working artifacts. Curated templates are updated only
 after review and privacy scrubbing.
+
+## Installation Script
+
+Skill installation is intentionally not a skill: it must work before any agent
+has loaded this repository's skills. Use `make install` or the underlying shell
+script:
+
+```bash
+scripts/install_agent_template_skills.sh --agent openai --agent claude --apply
+```
+
+If no `--agent` is provided and the script is attached to a terminal, it asks
+which agents to install for. In non-interactive mode it defaults to OpenAI/Codex.
+
+The installer writes a local `config/template_repo_path.txt` into installed
+copied skills so they can find this template repository later without users
+exporting environment variables. Symlink installs do not need that config.
 
 ## Vendor Conventions
 
@@ -213,5 +228,6 @@ markdownlint --config ~/.markdownlint.json README.md TODO.md templates/**/*.md s
 python3 scripts/privacy_scan.py .
 python3 skills/init-agents-file/scripts/init_agents_file.py --project .
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --scan-root . --max-depth 2
-python3 skills/install-agents-file-template-skills/scripts/install_agent_template_skills.py --agent openai
+shellcheck --enable=all scripts/install_agent_template_skills.sh
+scripts/install_agent_template_skills.sh --agent openai
 ```

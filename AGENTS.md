@@ -220,8 +220,8 @@ Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_
 - Installed skill copies may contain local `config/template_repo_path.txt`
   files created by the installer. Do not commit those local config files into
   this repository.
-- Keep `install-agents-file-template-skills` aligned with any new supported
-  agent destination or instruction-file convention.
+- Keep `scripts/install_agent_template_skills.sh` and `Makefile` aligned with
+  any new supported agent destination or instruction-file convention.
 - Keep `SKILL.md` concise and move deterministic behavior into bundled scripts.
 - Keep skill examples configurable. Do not assume every user keeps projects
   under `${HOME}/Development`.
@@ -231,6 +231,7 @@ Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_
 - Run `markdownlint --config /Users/mmassari/.markdownlint.json` on edited Markdown files. <!-- privacy_scan: allow -->
 - Run `yamllint -c .yamllint` on edited YAML files.
 - Run `python3 -m py_compile` on edited Python helper scripts.
+- Run `shellcheck --enable=all` on edited shell helper scripts.
 - Run `python3 scripts/privacy_scan.py .` before handoff.
 - Run a smoke test for edited skill scripts when behavior changes.
 
