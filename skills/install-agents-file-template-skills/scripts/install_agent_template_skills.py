@@ -55,6 +55,12 @@ def copy_skill(source: Path, dest: Path, mode: str, apply: bool) -> str:
         target.symlink_to(source, target_is_directory=True)
     else:
         shutil.copytree(source, target)
+        config_dir = target / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "template_repo_path.txt").write_text(
+            f"{source.parents[1]}\n",
+            encoding="utf-8",
+        )
     verb = "copied" if mode == "copy" else "symlinked"
     return f"{verb} {source} -> {target}"
 

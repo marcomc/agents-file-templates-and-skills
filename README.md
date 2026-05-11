@@ -65,7 +65,7 @@ must not be committed.
 
 ## How to Use
 
-Clone the repository, then run the installer from inside the clone:
+Clone the repository, then install the skills into the agents you use:
 
 ```bash
 git clone <REPOSITORY_URL> agents-file-templates
@@ -77,30 +77,25 @@ python3 skills/install-agents-file-template-skills/scripts/install_agent_templat
   --apply
 ```
 
-The installer can copy skills into each agent directory or symlink them back to
-this central repository:
+By default, the installer copies skills into each agent's skill directory. Add
+`--mode symlink` if you want each installed skill to point back to this central
+repository instead.
 
-```bash
-python3 skills/install-agents-file-template-skills/scripts/install_agent_template_skills.py \
-  --agent openai \
-  --agent claude \
-  --mode symlink \
-  --apply
+After installation, the normal workflow is to ask your coding agent to use the
+skill from inside a project. For example:
+
+```text
+Use init-agents-file to initialize this project's agent instructions.
 ```
 
-Then use `init-agents-file` from inside a project:
+The skill should inspect the current project, locate the template repository
+from its installed configuration, generate a dry run, and apply only after the
+target file and content are clear. By default it writes the portable standard
+`AGENTS.md`. If you want an agent-specific file, ask for that explicitly, for
+example `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md`.
 
-```bash
-python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
-  --project .
-```
-
-The command prints a dry run by default. Add `--apply` only when the generated
-content is correct. By default it writes the portable standard `AGENTS.md`.
-Use `--agent claude --output-mode specific` for `CLAUDE.md`,
-`--agent gemini --output-mode specific` for `GEMINI.md`, or
-`--agent copilot --output-mode specific` for
-`.github/copilot-instructions.md`.
+The Python scripts under `skills/*/scripts/` are implementation helpers and
+manual fallback entrypoints. They are not the preferred daily interface.
 
 To create a global policy for a new user, start from
 `templates/global/AGENTS.md`, replace placeholders, and place the result at
@@ -141,7 +136,10 @@ only when a product has a real adapter convention.
 
 Use this skill to install or symlink this repository's skills into local agent
 skill directories. It supports multiple agents in one run and reports when an
-agent uses instruction files instead of portable skill directories.
+agent uses instruction files instead of portable skill directories. The
+installer writes a local `config/template_repo_path.txt` into installed skill
+copies so the skills can find this template repository later without users
+exporting environment variables.
 
 ### `init-agents-file`
 

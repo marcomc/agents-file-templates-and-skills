@@ -217,6 +217,9 @@ Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_
 - The canonical skill sources live under `skills/`.
 - Installed copies under `${HOME}/.agents/skills/` are mirrors. After changing a
   skill, sync the matching folder into `${HOME}/.agents/skills/`.
+- Installed skill copies may contain local `config/template_repo_path.txt`
+  files created by the installer. Do not commit those local config files into
+  this repository.
 - Keep `install-agents-file-template-skills` aligned with any new supported
   agent destination or instruction-file convention.
 - Keep `SKILL.md` concise and move deterministic behavior into bundled scripts.

@@ -203,10 +203,24 @@ def ancestors(path: Path) -> list[Path]:
     return [resolved, *resolved.parents]
 
 
+def installed_repo_config() -> Path | None:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "config" / "template_repo_path.txt"
+        if candidate.exists():
+            configured = Path(candidate.read_text(encoding="utf-8").strip()).expanduser()
+            if (configured / "templates.yml").exists():
+                return configured
+    return None
+
+
 def default_template_repo(project: Path) -> Path:
     env_path = os.environ.get("AGENTS_TEMPLATE_REPO")
     if env_path:
         return Path(env_path).expanduser()
+
+    configured = installed_repo_config()
+    if configured:
+        return configured
 
     search_roots = [*ancestors(Path(__file__).resolve()), *ancestors(project), *ancestors(Path.cwd())]
     for candidate in search_roots:

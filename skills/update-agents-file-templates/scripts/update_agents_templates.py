@@ -59,6 +59,34 @@ def load_manifest(template_repo: Path) -> dict:
     return yaml.safe_load((template_repo / "templates.yml").read_text(encoding="utf-8"))
 
 
+def installed_repo_config() -> Path | None:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "config" / "template_repo_path.txt"
+        if candidate.exists():
+            configured = Path(candidate.read_text(encoding="utf-8").strip()).expanduser()
+            if (configured / "templates.yml").exists():
+                return configured
+    return None
+
+
+def default_template_repo() -> Path:
+    env_path = os.environ.get("AGENTS_TEMPLATE_REPO")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+
+    configured = installed_repo_config()
+    if configured:
+        return configured.resolve()
+
+    for candidate in [Path.cwd(), *Path.cwd().parents, Path(__file__).resolve(), *Path(__file__).resolve().parents]:
+        if (candidate / "templates.yml").exists() and (candidate / "templates").is_dir():
+            return candidate.resolve()
+
+    raise SystemExit(
+        "Could not find agents-file-templates. Pass --template-repo or set AGENTS_TEMPLATE_REPO."
+    )
+
+
 def is_ignored(path: Path, ignored: set[str]) -> bool:
     return any(part in ignored for part in path.parts)
 
@@ -267,14 +295,14 @@ def draft_for_template(template_repo: Path, records: list[dict], template: str) 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--template-repo", default=".")
+    parser.add_argument("--template-repo", default=None)
     parser.add_argument("--scan-root", action="append", default=[])
     parser.add_argument("--max-depth", type=int, default=None)
     parser.add_argument("--template", default="")
     parser.add_argument("--current-project", default="")
     args = parser.parse_args()
 
-    template_repo = Path(args.template_repo).expanduser().resolve()
+    template_repo = Path(args.template_repo).expanduser().resolve() if args.template_repo else default_template_repo()
     manifest = load_manifest(template_repo)
     ignored = set(manifest.get("scan_defaults", {}).get("ignored_dirs", []))
     max_depth = args.max_depth or int(manifest.get("scan_defaults", {}).get("max_depth", 2))

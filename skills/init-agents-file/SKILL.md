@@ -8,6 +8,10 @@ description: Use when initializing or refreshing project AI-agent instruction fi
 Use this skill to create or refresh a project AI-agent instruction file from an
 `agents-file-templates` repository.
 
+This skill is meant to be invoked through the active coding agent. The bundled
+Python script is the deterministic helper to run after deciding the target
+project, template repository, output filename, and apply mode.
+
 ## Workflow
 
 1. Identify the target project and template repository.
@@ -26,14 +30,14 @@ The script preserves content between:
 
 ## Commands
 
-Dry run for the current project:
+Manual fallback dry run for the current project:
 
 ```bash
 python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
   --project .
 ```
 
-Apply after review:
+Manual fallback apply after review:
 
 ```bash
 python3 /path/to/agents-file-templates/skills/init-agents-file/scripts/init_agents_file.py \
@@ -77,6 +81,9 @@ Agent-specific output names:
   `AGENTS.md`.
 - If the user implies a broader initialization but gives no scope, inspect the
   current path and ask before scanning a parent development directory.
+- Prefer the installed skill config file for locating the template repository.
+  If it is missing, search upward from the current project and script location;
+  if still unresolved, ask the user where the repository was cloned.
 
 ## Privacy
 
