@@ -128,12 +128,17 @@ def instruction_kind(path: Path) -> str:
     return "unknown"
 
 
-def instruction_agent(path: Path) -> str:
+def instruction_agent(path: Path, text: str = "", agent_global_paths: dict[str, str] | None = None) -> str:
     kind = instruction_kind(path)
     if kind in {"claude", "gemini"}:
         return kind
     if kind.startswith("copilot-"):
         return "copilot"
+    if kind == "agents" and agent_global_paths:
+        standard_path = agent_global_paths.get("standard")
+        for agent, global_path in agent_global_paths.items():
+            if global_path != standard_path and f"Follow `{global_path}`" in text:
+                return agent
     return "standard"
 
 
@@ -528,16 +533,16 @@ def write_out_of_sync_report(
     ignored: set[str],
 ) -> Path:
     init_helper = load_init_helper()
-    candidates = [
-        path
-        for path in find_agents(roots, max_depth, ignored)
-        if init_helper.GENERATED_MARKER in path.read_text(encoding="utf-8", errors="ignore")
-    ]
+    candidates = []
+    for path in find_agents(roots, max_depth, ignored):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if init_helper.GENERATED_MARKER in text:
+            candidates.append((path, text))
     records = []
-    for instruction_path in candidates:
+    for instruction_path, text in candidates:
         project = project_root_for_instruction(instruction_path)
         output_name = instruction_path.relative_to(project).as_posix()
-        agent = instruction_agent(instruction_path)
+        agent = instruction_agent(instruction_path, text, init_helper.AGENT_GLOBAL_PATHS)
         records.append(
             init_helper.check_output(
                 project,
