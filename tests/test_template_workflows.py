@@ -110,6 +110,53 @@ project_types:
             payload = json.loads(result.stdout)
             self.assertEqual(payload["status"], "current")
 
+    def test_check_preserves_render_time_set_values(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = self.write_project(directory)
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            template.write_text(template.read_text(encoding="utf-8") + "\n- Domain: `${PRIMARY_DOMAIN}`.\n", encoding="utf-8")
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--set",
+                "PROJECT_DESCRIPTION=Custom project description",
+                "--set",
+                "PRIMARY_DOMAIN=example.invalid",
+                "--apply",
+            )
+
+            result = self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--check",
+                "--json",
+            )
+            self.assertEqual(json.loads(result.stdout)["status"], "current")
+
+            template.write_text(template.read_text(encoding="utf-8") + "\n- New docs rule.\n", encoding="utf-8")
+            result = self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--check",
+                "--json",
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(json.loads(result.stdout)["status"], "out-of-sync")
+
     def test_apply_learning_draft_requires_approved_clean_draft(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)

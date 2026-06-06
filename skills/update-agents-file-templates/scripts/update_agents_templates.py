@@ -514,49 +514,6 @@ def load_init_helper():
     return module
 
 
-def placeholder_pattern(rendered: str, sentinels: dict[str, str]) -> str:
-    reverse = {value: key for key, value in sentinels.items()}
-    sentinel_re = re.compile("|".join(re.escape(value) for value in sentinels.values()))
-    parts: list[str] = []
-    seen: set[str] = set()
-    cursor = 0
-    for match in sentinel_re.finditer(rendered):
-        parts.append(re.escape(rendered[cursor : match.start()]))
-        key = reverse[match.group(0)]
-        group = f"placeholder_{key}"
-        if key in seen:
-            parts.append(f"(?P={group})")
-        else:
-            parts.append(f"(?P<{group}>.*?)")
-            seen.add(key)
-        cursor = match.end()
-    parts.append(re.escape(rendered[cursor:]))
-    return "".join(parts)
-
-
-def recover_render_pairs(
-    init_helper,
-    project: Path,
-    template_repo: Path,
-    instruction_path: Path,
-    agent: str,
-    output_name: str,
-) -> list[str]:
-    current = instruction_path.read_text(encoding="utf-8", errors="ignore")
-    selected = init_helper.generated_types(current)
-    if not selected:
-        return []
-
-    keys = init_helper.placeholder_values(project, [], agent)
-    sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
-    sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
-    rendered = init_helper.render(project, template_repo, selected, sentinel_pairs, agent, output_name)
-    match = re.fullmatch(placeholder_pattern(rendered, sentinels), current, re.DOTALL)
-    if not match:
-        return []
-    return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
-
-
 def write_out_of_sync_report(
     template_repo: Path,
     roots: list[Path],
@@ -574,13 +531,12 @@ def write_out_of_sync_report(
         project = project_root_for_instruction(instruction_path)
         output_name = instruction_path.relative_to(project).as_posix()
         agent = instruction_agent(instruction_path)
-        pairs = recover_render_pairs(init_helper, project, template_repo, instruction_path, agent, output_name)
         records.append(
             init_helper.check_output(
                 project,
                 template_repo,
                 [],
-                pairs,
+                [],
                 agent,
                 output_name,
             )
