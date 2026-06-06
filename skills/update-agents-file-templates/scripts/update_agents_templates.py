@@ -137,6 +137,12 @@ def instruction_agent(path: Path) -> str:
     return "standard"
 
 
+def nested_instruction_dirs(current_path: Path) -> set[str]:
+    if current_path.name == ".github":
+        return {"instructions"}
+    return {".github"}
+
+
 def find_agents(roots: list[Path], max_depth: int, ignored: set[str]) -> list[Path]:
     found: list[Path] = []
     for root in roots:
@@ -148,7 +154,8 @@ def find_agents(roots: list[Path], max_depth: int, ignored: set[str]) -> list[Pa
                 continue
             depth = 0 if rel == Path(".") else len(rel.parts)
             if depth >= max_depth:
-                dirs[:] = []
+                allowed = nested_instruction_dirs(current_path)
+                dirs[:] = [item for item in dirs if item not in ignored and item in allowed]
             else:
                 dirs[:] = [item for item in dirs if item not in ignored]
             for name in files:

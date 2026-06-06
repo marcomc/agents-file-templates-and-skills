@@ -311,6 +311,47 @@ Run markdownlint before completing Markdown documentation changes.
                     actual_output = Path(report[0]["output"]).resolve().relative_to(project.resolve()).as_posix()
                     self.assertEqual(actual_output, output_name)
 
+    def test_out_of_sync_report_includes_nested_copilot_at_max_depth(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            scan_root = directory / "scan-root"
+            project = scan_root / "team" / "project"
+            project.mkdir(parents=True)
+            (project / "README.md").write_text("# Project\n", encoding="utf-8")
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--agent",
+                "copilot",
+                "--output-mode",
+                "specific",
+                "--apply",
+            )
+
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            template.write_text(template.read_text(encoding="utf-8") + "\n- New docs rule.\n", encoding="utf-8")
+            self.run_helper(
+                UPDATE_SCRIPT,
+                "--template-repo",
+                str(template_repo),
+                "--scan-root",
+                str(scan_root),
+                "--max-depth",
+                "2",
+                "--out-of-sync-report",
+            )
+            report = json.loads((template_repo / ".work" / "out-of-sync" / "projects.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(report), 1)
+            self.assertEqual(report[0]["status"], "out-of-sync")
+            actual_output = Path(report[0]["output"]).resolve().relative_to(project.resolve()).as_posix()
+            self.assertEqual(actual_output, ".github/copilot-instructions.md")
+
     def test_out_of_sync_report_preserves_render_time_set_values(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
