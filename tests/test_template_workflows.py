@@ -164,6 +164,39 @@ project_types:
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(json.loads(result.stdout)["status"], "out-of-sync")
 
+    def test_check_detects_project_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = directory / "old"
+            project.mkdir()
+            (project / "README.md").write_text("# Project\n", encoding="utf-8")
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--apply",
+            )
+
+            renamed = directory / "new"
+            project.rename(renamed)
+            result = self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(renamed),
+                "--template-repo",
+                str(template_repo),
+                "--check",
+                "--json",
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(json.loads(result.stdout)["status"], "out-of-sync")
+
     def test_apply_learning_draft_requires_approved_clean_draft(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)

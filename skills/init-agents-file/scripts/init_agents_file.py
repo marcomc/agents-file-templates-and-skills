@@ -24,6 +24,8 @@ GENERATED_MARKER = "<!-- generated-by: agents-file-templates-and-skills/init-age
 GENERATED_DATE_PATTERN = re.compile(r"<!-- generated-date: .*? -->")
 TEMPLATE_MARKER_PATTERN = re.compile(r"<!-- BEGIN TEMPLATE: (?P<type>[^>]+) -->")
 PLACEHOLDER_TOKEN_PATTERN = re.compile(r"\$\{(?P<key>[A-Za-z_][A-Za-z0-9_]*)\}")
+DERIVED_PLACEHOLDERS = {"GENERATED_DATE", "PROJECT_NAME"}
+RECOVERABLE_BASE_PLACEHOLDERS = {"PROJECT_DESCRIPTION"}
 
 AGENT_OUTPUTS = {
     "standard": "AGENTS.md",
@@ -244,12 +246,7 @@ def recover_render_pairs(
     output_name: str,
     current: str,
 ) -> list[str]:
-    keys = sorted(
-        {
-            *placeholder_values(project, [], agent),
-            *template_placeholder_keys(template_repo, selected),
-        }
-    )
+    keys = sorted(recoverable_placeholder_keys(template_repo, selected))
     sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
     sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
     rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name)
@@ -257,6 +254,11 @@ def recover_render_pairs(
     if not match:
         return []
     return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
+
+
+def recoverable_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
+    keys = {*RECOVERABLE_BASE_PLACEHOLDERS, *template_placeholder_keys(template_repo, selected)}
+    return keys - DERIVED_PLACEHOLDERS
 
 
 def template_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
