@@ -116,7 +116,12 @@ project_types:
             template_repo = self.write_template_repo(directory)
             project = self.write_project(directory)
             template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
-            template.write_text(template.read_text(encoding="utf-8") + "\n- Domain: `${PRIMARY_DOMAIN}`.\n", encoding="utf-8")
+            template.write_text(
+                template.read_text(encoding="utf-8")
+                + "\n- Domain: `${PRIMARY_DOMAIN}`.\n"
+                + "- Custom value: `${CUSTOM_VALUE}`.\n",
+                encoding="utf-8",
+            )
             self.run_helper(
                 INIT_SCRIPT,
                 "--project",
@@ -129,6 +134,8 @@ project_types:
                 "PROJECT_DESCRIPTION=Custom project description",
                 "--set",
                 "PRIMARY_DOMAIN=example.invalid",
+                "--set",
+                "CUSTOM_VALUE=custom",
                 "--apply",
             )
 
@@ -358,7 +365,12 @@ Run markdownlint before completing Markdown documentation changes.
             template_repo = self.write_template_repo(directory)
             project = self.write_project(directory)
             template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
-            template.write_text(template.read_text(encoding="utf-8") + "\n- Domain: `${PRIMARY_DOMAIN}`.\n", encoding="utf-8")
+            template.write_text(
+                template.read_text(encoding="utf-8")
+                + "\n- Domain: `${PRIMARY_DOMAIN}`.\n"
+                + "- Custom value: `${CUSTOM_VALUE}`.\n",
+                encoding="utf-8",
+            )
             self.run_helper(
                 INIT_SCRIPT,
                 "--project",
@@ -371,6 +383,8 @@ Run markdownlint before completing Markdown documentation changes.
                 "PROJECT_DESCRIPTION=Custom project description",
                 "--set",
                 "PRIMARY_DOMAIN=example.invalid",
+                "--set",
+                "CUSTOM_VALUE=custom",
                 "--apply",
             )
 

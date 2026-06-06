@@ -23,6 +23,7 @@ END_LOCAL = "<!-- END PROJECT LOCAL -->"
 GENERATED_MARKER = "<!-- generated-by: agents-file-templates-and-skills/init-agents-file -->"
 GENERATED_DATE_PATTERN = re.compile(r"<!-- generated-date: .*? -->")
 TEMPLATE_MARKER_PATTERN = re.compile(r"<!-- BEGIN TEMPLATE: (?P<type>[^>]+) -->")
+PLACEHOLDER_TOKEN_PATTERN = re.compile(r"\$\{(?P<key>[A-Za-z_][A-Za-z0-9_]*)\}")
 
 AGENT_OUTPUTS = {
     "standard": "AGENTS.md",
@@ -243,7 +244,12 @@ def recover_render_pairs(
     output_name: str,
     current: str,
 ) -> list[str]:
-    keys = placeholder_values(project, [], agent)
+    keys = sorted(
+        {
+            *placeholder_values(project, [], agent),
+            *template_placeholder_keys(template_repo, selected),
+        }
+    )
     sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
     sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
     rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name)
@@ -251,6 +257,19 @@ def recover_render_pairs(
     if not match:
         return []
     return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
+
+
+def template_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
+    manifest = load_manifest(template_repo)
+    paths = template_map(manifest)
+    keys: set[str] = set()
+    for type_id in selected:
+        rel_path = paths.get(type_id)
+        if not rel_path:
+            continue
+        text = (template_repo / rel_path).read_text(encoding="utf-8")
+        keys.update(match.group("key") for match in PLACEHOLDER_TOKEN_PATTERN.finditer(text))
+    return keys
 
 
 def check_output(
