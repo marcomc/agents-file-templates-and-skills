@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -76,6 +77,11 @@ project_types:
         (project / "README.md").write_text("# Project\n", encoding="utf-8")
         return project
 
+    def replace_generated_date(self, path: Path, value: str) -> None:
+        text = path.read_text(encoding="utf-8")
+        updated = re.sub(r"<!-- generated-date: .*? -->", f"<!-- generated-date: {value} -->", text)
+        path.write_text(updated, encoding="utf-8")
+
     def test_generated_output_keeps_home_placeholder_and_check_ignores_date(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
@@ -138,6 +144,7 @@ project_types:
                 "CUSTOM_VALUE=custom",
                 "--apply",
             )
+            self.replace_generated_date(project / "AGENTS.md", "2000-01-01")
 
             result = self.run_helper(
                 INIT_SCRIPT,
@@ -420,6 +427,7 @@ Run markdownlint before completing Markdown documentation changes.
                 "CUSTOM_VALUE=custom",
                 "--apply",
             )
+            self.replace_generated_date(project / "AGENTS.md", "2000-01-01")
 
             self.run_helper(
                 UPDATE_SCRIPT,

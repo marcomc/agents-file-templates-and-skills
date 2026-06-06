@@ -250,7 +250,11 @@ def recover_render_pairs(
     sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
     sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
     rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name)
-    match = re.fullmatch(placeholder_pattern(rendered, sentinels), current, re.DOTALL)
+    match = re.fullmatch(
+        placeholder_pattern(normalize_generated(rendered), sentinels),
+        normalize_generated(current),
+        re.DOTALL,
+    )
     if not match:
         return []
     return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
