@@ -219,6 +219,51 @@ Run markdownlint before completing Markdown documentation changes.
             report = json.loads((template_repo / ".work" / "out-of-sync" / "projects.json").read_text(encoding="utf-8"))
             self.assertEqual(report[0]["status"], "out-of-sync")
 
+    def test_out_of_sync_report_includes_agent_specific_outputs(self) -> None:
+        cases = {
+            "claude": "CLAUDE.md",
+            "gemini": "GEMINI.md",
+            "copilot": ".github/copilot-instructions.md",
+        }
+        for agent, output_name in cases.items():
+            with self.subTest(agent=agent):
+                with tempfile.TemporaryDirectory() as raw:
+                    directory = Path(raw)
+                    template_repo = self.write_template_repo(directory)
+                    project = self.write_project(directory)
+                    self.run_helper(
+                        INIT_SCRIPT,
+                        "--project",
+                        str(project),
+                        "--template-repo",
+                        str(template_repo),
+                        "--types",
+                        "docs",
+                        "--agent",
+                        agent,
+                        "--output-mode",
+                        "specific",
+                        "--apply",
+                    )
+
+                    template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+                    template.write_text(template.read_text(encoding="utf-8") + "\n- New docs rule.\n", encoding="utf-8")
+                    self.run_helper(
+                        UPDATE_SCRIPT,
+                        "--template-repo",
+                        str(template_repo),
+                        "--scan-root",
+                        str(directory),
+                        "--out-of-sync-report",
+                    )
+                    report = json.loads(
+                        (template_repo / ".work" / "out-of-sync" / "projects.json").read_text(encoding="utf-8")
+                    )
+                    self.assertEqual(len(report), 1)
+                    self.assertEqual(report[0]["status"], "out-of-sync")
+                    actual_output = Path(report[0]["output"]).resolve().relative_to(project.resolve()).as_posix()
+                    self.assertEqual(actual_output, output_name)
+
 
 if __name__ == "__main__":
     unittest.main()

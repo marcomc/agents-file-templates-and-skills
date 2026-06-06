@@ -128,6 +128,15 @@ def instruction_kind(path: Path) -> str:
     return "unknown"
 
 
+def instruction_agent(path: Path) -> str:
+    kind = instruction_kind(path)
+    if kind in {"claude", "gemini"}:
+        return kind
+    if kind.startswith("copilot-"):
+        return "copilot"
+    return "standard"
+
+
 def find_agents(roots: list[Path], max_depth: int, ignored: set[str]) -> list[Path]:
     found: list[Path] = []
     for root in roots:
@@ -515,20 +524,20 @@ def write_out_of_sync_report(
     candidates = [
         path
         for path in find_agents(roots, max_depth, ignored)
-        if path.name == "AGENTS.md"
-        and init_helper.GENERATED_MARKER in path.read_text(encoding="utf-8", errors="ignore")
+        if init_helper.GENERATED_MARKER in path.read_text(encoding="utf-8", errors="ignore")
     ]
     records = []
-    for agents_path in candidates:
-        project = project_root_for_instruction(agents_path)
+    for instruction_path in candidates:
+        project = project_root_for_instruction(instruction_path)
+        output_name = instruction_path.relative_to(project).as_posix()
         records.append(
             init_helper.check_output(
                 project,
                 template_repo,
                 [],
                 [],
-                "standard",
-                "AGENTS.md",
+                instruction_agent(instruction_path),
+                output_name,
             )
         )
 
