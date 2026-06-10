@@ -11,7 +11,7 @@
 - Only create or date a release entry when the release is actually being
   finalized.
 
-## Validation
+## Release Validation
 
 - Confirm the working tree state, target branch, tag, and changelog entry before
   release publication.

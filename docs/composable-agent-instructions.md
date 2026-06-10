@@ -14,6 +14,7 @@ while keeping each project explicit enough for an agent to act reliably.
 - [Upstreaming From Learnings](#upstreaming-from-learnings)
 - [Learning Handoff Format](#learning-handoff-format)
 - [Review And Apply](#review-and-apply)
+- [Automation Integration](#automation-integration)
 - [Refresh Coverage](#refresh-coverage)
 - [Failure Controls](#failure-controls)
 - [Generation Policy](#generation-policy)
@@ -198,6 +199,28 @@ the same command with `--apply`.
 
 Approved draft rules are appended under `## Learned Rules` in the selected
 curated atom/template. Existing matching bullets are not duplicated.
+
+## Automation Integration
+
+The full two-repository automation install runbook lives in
+`${HOME}/Development/agent-learning-system/docs/auto-learning-pipeline-automations.md`.
+
+This repository owns the weekly template-side job:
+
+| Automation | Cwd | Source Prompt |
+| --- | --- | --- |
+| `agent-template-weekly-upstream-apply` | `agents-file-templates-and-skills` | `agent-learning-system/automations/template-weekly-upstream-apply.md` |
+
+The job is valid only if it keeps this order:
+
+```text
+summary -> inspect drafts -> dry run approved clean drafts -> apply ->
+validate -> out-of-sync report
+```
+
+It must skip draft, blocked, needs-scrub, duplicate-looking, private, or
+unreviewed handoffs. It must not stage, commit, push, open pull requests, or
+edit unrelated files.
 
 ## Refresh Coverage
 

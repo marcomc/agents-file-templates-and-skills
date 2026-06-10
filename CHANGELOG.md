@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of expanding personal local paths.
 - The template update skill now documents reviewed apply and refresh-report
   workflows for learning-upstream drafts.
+- Documentation now links this repository's template-side automation contract
+  to the learning-system pipeline runbook.
 
 ### Fixed in 1.1.0
 

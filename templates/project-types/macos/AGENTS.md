@@ -7,7 +7,7 @@
 - Avoid AppleScript automation unless the task specifically requires UI-level
   control.
 
-## Validation
+## macOS Validation
 
 - Build and run the target that matches the changed code.
 - For UI changes, inspect the app in the relevant simulator or local runtime.

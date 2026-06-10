@@ -13,7 +13,7 @@
 - Keep text from overflowing containers.
 - Avoid decorative complexity that makes core workflows harder to scan.
 
-## Validation
+## Web Validation
 
 - Run the project lint, typecheck, unit tests, and browser checks that match the
   changed surface.

@@ -19,7 +19,7 @@
 - Prefer runtime secret delivery through environment variables, mounted secret
   files, orchestrator secrets, or a secret manager.
 
-## Validation
+## Docker Validation
 
 - Rebuild images and restart services through the project workflow when Docker
   files or container entrypoints change.

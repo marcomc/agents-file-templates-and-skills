@@ -22,7 +22,7 @@
   not enough; it must also be included in the wrapper's forwarded environment
   list.
 
-## Validation
+## Workspace Validation
 
 - After changing harness configuration, run both low-level runner checks and
   the user-facing wrapper entrypoints that exercise them.

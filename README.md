@@ -11,6 +11,7 @@ improving project-specific agent instructions.
 - [Configuration](#configuration)
 - [Skills](#skills)
 - [Composable Instructions](#composable-instructions)
+- [Auto-Learning Pipeline](#auto-learning-pipeline)
 - [Installation Script](#installation-script)
 - [Vendor Conventions](#vendor-conventions)
 - [Build Workflow](#build-workflow)
@@ -185,6 +186,26 @@ Reusable instruction composition is documented in
 This model treats the global policy as a director file, project-type overlays as
 composable atoms, and project `AGENTS.md` files as generated compositions with a
 preserved local section.
+
+## Auto-Learning Pipeline
+
+This repository is the template side of the two-repository auto-learning
+pipeline. The orchestration runbook lives in
+`${HOME}/Development/agent-learning-system/docs/auto-learning-pipeline-automations.md`.
+
+The required weekly template automation runs in this repository and must:
+
+| Step | Requirement |
+| --- | --- |
+| Summarize | Inspect `.work/learning-upstream/` handoffs |
+| Gate | Apply only `Review status: approved` plus `Privacy verdict: clean` |
+| Validate | Run Markdown, Python, unit-test, and privacy checks |
+| Report | Write `.work/out-of-sync/` refresh reports |
+| Avoid | No stage, commit, push, pull request, or unrelated edits |
+
+Use
+[`docs/composable-agent-instructions.md#automation-integration`](docs/composable-agent-instructions.md#automation-integration)
+for the template-side command contract.
 
 ## Installation Script
 
