@@ -6,12 +6,16 @@ usage() {
 Usage: install_agent_template_skills.sh [--repo PATH] [--agent NAME]... [--mode copy|symlink] [--apply] [--uninstall]
 
 Agents:
-  openai, codex   install to ${HOME}/.agents/skills
-  claude          install to ${HOME}/.claude/skills
-  opencode        install to ${HOME}/.claude/skills
-  copilot         reports instruction-file guidance
-  gemini          reports instruction-file guidance
+  openai, codex          install to ${HOME}/.agents/skills and link into Codex
+  claude, claude-code    link into Claude Code
+  opencode              link into OpenCode
+  copilot, github-copilot link into GitHub Copilot
+  gemini                link into Gemini CLI
+  openclaw              link into OpenClaw
   all             all known agents
+
+Selected skills are always installed first into ${HOME}/.agents/skills. Agent-specific
+skill directories receive symlinks to that canonical location.
 
 Dry run is the default. Add --apply to install or uninstall.
 USAGE
@@ -22,6 +26,8 @@ mode="copy"
 apply="false"
 action="install"
 agents=""
+newline='
+'
 
 while [ "$#" -gt 0 ]; do
   case "${1}" in
@@ -71,9 +77,9 @@ prompt_agents() {
   fi
 
   printf '%s\n' "Select agents to install skills for:"
-  printf '%s\n' "  1) OpenAI/Codex (~/.agents/skills)"
+  printf '%s\n' "  1) OpenAI/Codex (~/.agents/skills + ~/.codex/skills)"
   printf '%s\n' "  2) Claude Code (~/.claude/skills)"
-  printf '%s\n' "  3) OpenCode (Claude-compatible ~/.claude/skills)"
+  printf '%s\n' "  3) OpenCode (~/.config/opencode/skills)"
   printf '%s\n' "  4) all"
   printf '%s' "Enter numbers or names separated by spaces [openai]: "
   read -r answer || answer=""
@@ -101,18 +107,18 @@ parent_dir() {
 abspath() {
   case "${1}" in
     /*)
-      path=${1}
+      target_path=${1}
       ;;
     *)
       current_dir=$(pwd)
-      path="${current_dir}/${1}"
+      target_path="${current_dir}/${1}"
       ;;
   esac
-  if [ -d "${path}" ]; then
-    cd -- "${path}" && pwd
+  if [ -d "${target_path}" ]; then
+    (cd -- "${target_path}" && pwd)
   else
-    path_parent=$(parent_dir "${path}")
-    path_name=$(basename -- "${path}")
+    path_parent=$(parent_dir "${target_path}")
+    path_name=$(basename -- "${target_path}")
     absolute_parent=$(cd -- "${path_parent}" && pwd)
     printf '%s/%s\n' "${absolute_parent}" "${path_name}"
   fi
@@ -152,10 +158,53 @@ find_repo() {
 
 add_dest() {
   dest=${1}
-  case " ${destinations} " in
-    *" ${dest} "*) ;;
-    *) destinations="${destinations}${destinations:+ }${dest}" ;;
+  case "${newline}${link_destinations}${newline}" in
+    *"${newline}${dest}${newline}"*) ;;
+    *) link_destinations="${link_destinations}${link_destinations:+${newline}}${dest}" ;;
   esac
+}
+
+discover_skill_names() {
+  for skill_dir in "${repo}/skills"/*; do
+    [ -d "${skill_dir}" ] || continue
+    [ -f "${skill_dir}/SKILL.md" ] || continue
+    basename -- "${skill_dir}"
+  done | sort
+}
+
+codex_skills_dir() {
+  codex_home=${CODEX_HOME:-"${HOME}/.codex"}
+  printf '%s/skills\n' "${codex_home}"
+}
+
+claude_skills_dir() {
+  claude_home=${CLAUDE_CONFIG_DIR:-"${HOME}/.claude"}
+  printf '%s/skills\n' "${claude_home}"
+}
+
+opencode_skills_dir() {
+  config_home=${XDG_CONFIG_HOME:-"${HOME}/.config"}
+  printf '%s/opencode/skills\n' "${config_home}"
+}
+
+openclaw_skills_dir() {
+  if [ -d "${HOME}/.openclaw" ]; then
+    printf '%s/.openclaw/skills\n' "${HOME}"
+  elif [ -d "${HOME}/.clawdbot" ]; then
+    printf '%s/.clawdbot/skills\n' "${HOME}"
+  elif [ -d "${HOME}/.moltbot" ]; then
+    printf '%s/.moltbot/skills\n' "${HOME}"
+  else
+    printf '%s/.openclaw/skills\n' "${HOME}"
+  fi
+}
+
+copilot_skills_dir() {
+  printf '%s/.copilot/skills\n' "${HOME}"
+}
+
+gemini_skills_dir() {
+  printf '%s/.gemini/skills\n' "${HOME}"
 }
 
 copy_dir() {
@@ -167,17 +216,34 @@ copy_dir() {
   cp -R "${source}" "${target}"
 }
 
-install_skill() {
+canonical_cleanup_marker() {
+  skill_name=${1}
+  printf '%s/.install-agent-template-skills/non-codex-owned/%s\n' \
+    "${canonical_root}" \
+    "${skill_name}"
+}
+
+install_canonical_skill() {
   source=${1}
-  dest_root=${2}
-  target="${dest_root}/$(basename -- "${source}")"
+  skill_name=$(basename -- "${source}")
+  target="${canonical_root}/${skill_name}"
+  cleanup_marker=$(canonical_cleanup_marker "${skill_name}")
+  write_cleanup_marker="false"
+
+  if [ "${codex_agent_selected}" = "false" ]; then
+    if [ ! -e "${target}" ] && [ ! -L "${target}" ]; then
+      write_cleanup_marker="true"
+    elif [ -f "${cleanup_marker}" ]; then
+      write_cleanup_marker="true"
+    fi
+  fi
 
   if [ "${apply}" != "true" ]; then
     echo "would ${mode} ${source} -> ${target}"
     return 0
   fi
 
-  mkdir -p "${dest_root}"
+  mkdir -p "${canonical_root}"
   rm -rf "${target}"
 
   if [ "${mode}" = "symlink" ]; then
@@ -189,6 +255,31 @@ install_skill() {
     printf '%s\n' "${repo}" > "${target}/config/template_repo_path.txt"
     echo "copied ${source} -> ${target}"
   fi
+
+  if [ "${write_cleanup_marker}" = "true" ]; then
+    cleanup_marker_parent=$(parent_dir "${cleanup_marker}")
+    mkdir -p "${cleanup_marker_parent}"
+    : > "${cleanup_marker}"
+  else
+    rm -f "${cleanup_marker}"
+  fi
+}
+
+link_skill() {
+  skill_name=${1}
+  dest_root=${2}
+  source="${canonical_root}/${skill_name}"
+  target="${dest_root}/${skill_name}"
+
+  if [ "${apply}" != "true" ]; then
+    echo "would symlink ${source} -> ${target}"
+    return 0
+  fi
+
+  mkdir -p "${dest_root}"
+  rm -rf "${target}"
+  ln -s "${source}" "${target}"
+  echo "symlinked ${source} -> ${target}"
 }
 
 uninstall_skill() {
@@ -206,11 +297,20 @@ uninstall_skill() {
 }
 
 repo=$(find_repo)
-destinations=""
+canonical_root="${HOME}/.agents/skills"
+link_destinations=""
+known_agent_selected="false"
+codex_agent_selected="false"
+skill_names=$(discover_skill_names)
+
+if [ -z "${skill_names}" ]; then
+  echo "No skills found under ${repo}/skills" >&2
+  exit 1
+fi
 
 case " ${agents} " in
   *" all "*)
-    agents="openai codex claude opencode copilot gemini"
+    agents="openai codex claude opencode copilot gemini openclaw"
     ;;
   *)
     ;;
@@ -219,16 +319,35 @@ esac
 for agent in ${agents}; do
   case "${agent}" in
     openai|codex)
-      add_dest "${HOME}/.agents/skills"
+      agent_dest=$(codex_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
+      codex_agent_selected="true"
       ;;
-    claude|opencode)
-      add_dest "${HOME}/.claude/skills"
+    claude|claude-code)
+      agent_dest=$(claude_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
-    copilot)
-      echo "skip copilot: GitHub Copilot uses repository instruction files, not portable SKILL.md directories."
+    opencode)
+      agent_dest=$(opencode_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
+      ;;
+    copilot|github-copilot)
+      agent_dest=$(copilot_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     gemini)
-      echo "skip gemini: Gemini commonly uses GEMINI.md context files; skill directory support depends on your CLI configuration."
+      agent_dest=$(gemini_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
+      ;;
+    openclaw)
+      agent_dest=$(openclaw_skills_dir)
+      add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     *)
       echo "skip ${agent}: unknown agent"
@@ -236,21 +355,82 @@ for agent in ${agents}; do
   esac
 done
 
-for dest_root in ${destinations}; do
-  for skill_name in init-agents-file update-agents-file-templates; do
-    source="${repo}/skills/${skill_name}"
-    if [ "${action}" = "uninstall" ]; then
-      uninstall_skill "${skill_name}" "${dest_root}"
-      continue
+if [ "${known_agent_selected}" = "false" ]; then
+  echo "No known agents selected; nothing to ${action}."
+  if [ "${apply}" != "true" ]; then
+    echo "Dry run only. Re-run with --apply to ${action}."
+  fi
+  exit 0
+fi
+
+remove_canonical_if_unused() {
+  skill_name=${1}
+  canonical_target="${canonical_root}/${skill_name}"
+  cleanup_marker=$(canonical_cleanup_marker "${skill_name}")
+  canonical_in_use="false"
+  canonical_removal_allowed="false"
+
+  for target in \
+    "$(codex_skills_dir)/${skill_name}" \
+    "$(claude_skills_dir)/${skill_name}" \
+    "$(opencode_skills_dir)/${skill_name}" \
+    "$(copilot_skills_dir)/${skill_name}" \
+    "$(gemini_skills_dir)/${skill_name}" \
+    "${HOME}/.openclaw/skills/${skill_name}" \
+    "${HOME}/.clawdbot/skills/${skill_name}" \
+    "${HOME}/.moltbot/skills/${skill_name}"
+  do
+    target_root=$(parent_dir "${target}")
+    case "${newline}${link_destinations}${newline}" in
+      *"${newline}${target_root}${newline}"*) continue ;;
+      *) ;;
+    esac
+
+    if [ -L "${target}" ]; then
+      link_target=$(readlink "${target}")
+      if [ "${link_target}" = "${canonical_target}" ]; then
+        canonical_in_use="true"
+        break
+      fi
     fi
-    if [ ! -d "${source}" ]; then
-      echo "skip missing skill: ${source}"
-      continue
-    fi
-    install_skill "${source}" "${dest_root}"
   done
+
+  if [ "${codex_agent_selected}" = "true" ] || [ -f "${cleanup_marker}" ]; then
+    canonical_removal_allowed="true"
+  fi
+
+  if [ "${canonical_in_use}" = "false" ] && [ "${canonical_removal_allowed}" = "true" ]; then
+    uninstall_skill "${skill_name}" "${canonical_root}"
+    if [ "${apply}" = "true" ]; then
+      rm -f "${cleanup_marker}"
+    fi
+  fi
+}
+
+for skill_name in ${skill_names}; do
+  source="${repo}/skills/${skill_name}"
+  if [ "${action}" = "uninstall" ]; then
+    printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+      [ -n "${dest_root}" ] || continue
+      uninstall_skill "${skill_name}" "${dest_root}"
+    done
+    remove_canonical_if_unused "${skill_name}"
+    continue
+  fi
+
+  install_canonical_skill "${source}"
+  printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+    [ -n "${dest_root}" ] || continue
+    link_skill "${skill_name}" "${dest_root}"
+  done
+done
+
+printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+  [ -n "${dest_root}" ] || continue
   uninstall_skill "install-agents-file-template-skills" "${dest_root}"
 done
+
+remove_canonical_if_unused "install-agents-file-template-skills"
 
 if [ "${apply}" != "true" ]; then
   echo "Dry run only. Re-run with --apply to ${action}."

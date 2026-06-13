@@ -221,6 +221,8 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
   this repository.
 - Keep `scripts/install_agent_template_skills.sh` and `Makefile` aligned with
   any new supported agent destination or instruction-file convention.
+- Installer tests must set or clear `AGENTS_TEMPLATE_REPO` explicitly so ambient
+  local configuration cannot bypass fixture repositories.
 - Keep `SKILL.md` concise and move deterministic behavior into bundled scripts.
 - Keep skill examples configurable. Do not assume every user keeps projects
   under `${HOME}/Development`.

@@ -4,9 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-06-13
+
+### Added
+
+- Unit coverage for installer fanout, symlink mode, and paths containing spaces.
+
+### Changed
+
+- The skill installer now discovers all repository skills automatically,
+  installs them canonically under `${HOME}/.agents/skills`, and fans out
+  symlinks to selected agent-specific skill directories.
+
+### Fixed
+
+- Preserve agent skill destination paths containing spaces when fanning out
+  symlinks.
+- Remove orphaned canonical skill copies when uninstalling non-Codex agents
+  without breaking canonical copies still referenced by another agent.
+- Keep unknown-agent uninstalls non-destructive and make dry-run uninstall
+  previews include canonical skill copies that would become orphaned.
+- Preserve existing Codex-owned canonical skill copies during partial
+  non-Codex uninstalls.
+
 ## [1.1.0] - 2026-06-06
 
-### Added in 1.1.0
+### Added
 
 - Composable agent instruction architecture documentation for global director
   policy, reusable atoms, project-local sections, and template refresh flow.
@@ -20,7 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Unit tests covering safe placeholder rendering, generated-file freshness,
   approved-draft apply, and out-of-sync reports.
 
-### Changed in 1.1.0
+### Changed
 
 - Generated project instructions now keep `${HOME}`-style placeholders instead
   of expanding personal local paths.
@@ -29,7 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation now links this repository's template-side automation contract
   to the learning-system pipeline runbook.
 
-### Fixed in 1.1.0
+### Fixed
 
 - Removed the unapproved-draft apply bypass so only approved, clean learning
   drafts can modify curated templates.

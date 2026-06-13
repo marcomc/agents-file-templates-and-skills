@@ -90,12 +90,14 @@ cd agents-file-templates-and-skills
 make install AGENTS="openai claude opencode"
 ```
 
-By default, the installer copies skills into each agent's skill directory. Add
-`--mode symlink` if you want each installed skill to point back to this central
-repository instead:
+By default, the installer copies every `skills/<name>/SKILL.md` skill into
+`${HOME}/.agents/skills`, then creates agent-specific symlinks back to that
+canonical location. Add `--mode symlink` if you want the canonical
+`${HOME}/.agents/skills/<name>` entries to point back to this repository
+instead:
 
 ```bash
-make install-symlink AGENTS="openai claude"
+make install-symlink AGENTS="codex claude"
 ```
 
 Remove installed skills with:
@@ -214,15 +216,19 @@ has loaded this repository's skills. Use `make install` or the underlying shell
 script:
 
 ```bash
-scripts/install_agent_template_skills.sh --agent openai --agent claude --apply
+scripts/install_agent_template_skills.sh --agent codex --agent claude --apply
 ```
 
 If no `--agent` is provided and the script is attached to a terminal, it asks
 which agents to install for. In non-interactive mode it defaults to OpenAI/Codex.
 
 The installer writes a local `config/template_repo_path.txt` into installed
-copied skills so they can find this template repository later without users
-exporting environment variables. Symlink installs do not need that config.
+copied canonical skills so they can find this template repository later without
+users exporting environment variables. Symlink installs do not need that config.
+
+Selected agents receive symlinks from their native skill directories to
+`${HOME}/.agents/skills/<name>`. The supported fanout targets are Codex,
+Claude Code, OpenCode, GitHub Copilot, Gemini CLI, and OpenClaw.
 
 ## Vendor Conventions
 
@@ -230,9 +236,10 @@ exporting environment variables. Symlink installs do not need that config.
 | --- | --- | --- | --- | --- |
 | OpenAI Codex | `AGENTS.md` convention, plus Codex skills | Codex-local skills directories | Agent Skills: `SKILL.md` plus optional `scripts/`, `references/`, `assets/` | Optional `agents/openai.yaml`, OpenAI/Codex UI metadata |
 | Anthropic Claude Code | `CLAUDE.md` or `.claude/CLAUDE.md` | `~/.claude/CLAUDE.md`; local `CLAUDE.local.md` | Agent Skills in `~/.claude/skills/` or project `.claude/skills/` | No separate adapter required; metadata is in `SKILL.md` frontmatter |
-| GitHub Copilot | `.github/copilot-instructions.md`; path-specific `.github/instructions/*.instructions.md`; partial support for `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` varies by feature | Personal and organization instructions in GitHub/Copilot settings | Prompt files `*.prompt.md`; repository instructions are Markdown files | No metadata adapter; mostly Markdown files and GitHub settings |
+| GitHub Copilot | `.github/copilot-instructions.md`; path-specific `.github/instructions/*.instructions.md`; partial support for `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` varies by feature | Personal and organization instructions in GitHub/Copilot settings | Agent Skills in `${HOME}/.copilot/skills/` when enabled; prompt files `*.prompt.md`; repository instructions are Markdown files | No metadata adapter; mostly Markdown files and GitHub settings |
 | Google Gemini CLI | `GEMINI.md` by default | `~/.gemini/GEMINI.md` | Context files and CLI skills, depending on local version and configuration | No vendor adapter for instruction files; configurable context filenames |
 | OpenCode | `AGENTS.md` | `~/.config/opencode/AGENTS.md` | Claude-compatible skills and custom agents | Uses `opencode.json` or Markdown frontmatter for custom agents, not an `openai.yaml` equivalent |
+| OpenClaw | Tool-specific project instructions | Detected local config root, preferring `${HOME}/.openclaw`, `${HOME}/.clawdbot`, then `${HOME}/.moltbot` | Agent Skills under the detected `skills/` directory | No separate adapter required |
 
 The practical rule for this repository is: keep curated templates in
 `templates/**/AGENTS.md`, then generate the output filename each target agent

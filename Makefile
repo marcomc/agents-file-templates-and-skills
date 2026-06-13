@@ -34,4 +34,5 @@ validate:
 	yamllint -c .yamllint templates.yml skills/*/agents/openai.yaml .yamllint
 	python3 -m py_compile scripts/privacy_scan.py skills/init-agents-file/scripts/init_agents_file.py skills/update-agents-file-templates/scripts/update_agents_templates.py
 	shellcheck --enable=all scripts/install_agent_template_skills.sh
+	python3 -m unittest discover -s tests
 	python3 scripts/privacy_scan.py .
