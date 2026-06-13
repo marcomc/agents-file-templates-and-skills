@@ -26,6 +26,8 @@ mode="copy"
 apply="false"
 action="install"
 agents=""
+newline='
+'
 
 while [ "$#" -gt 0 ]; do
   case "${1}" in
@@ -156,9 +158,9 @@ find_repo() {
 
 add_dest() {
   dest=${1}
-  case " ${link_destinations} " in
-    *" ${dest} "*) ;;
-    *) link_destinations="${link_destinations}${link_destinations:+ }${dest}" ;;
+  case "${newline}${link_destinations}${newline}" in
+    *"${newline}${dest}${newline}"*) ;;
+    *) link_destinations="${link_destinations}${link_destinations:+${newline}}${dest}" ;;
   esac
 }
 
@@ -324,7 +326,8 @@ done
 for skill_name in ${skill_names}; do
   source="${repo}/skills/${skill_name}"
   if [ "${action}" = "uninstall" ]; then
-    for dest_root in ${link_destinations}; do
+    printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+      [ -n "${dest_root}" ] || continue
       uninstall_skill "${skill_name}" "${dest_root}"
     done
     if [ "${remove_canonical}" = "true" ]; then
@@ -334,12 +337,14 @@ for skill_name in ${skill_names}; do
   fi
 
   install_canonical_skill "${source}"
-  for dest_root in ${link_destinations}; do
+  printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+    [ -n "${dest_root}" ] || continue
     link_skill "${skill_name}" "${dest_root}"
   done
 done
 
-for dest_root in ${link_destinations}; do
+printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
+  [ -n "${dest_root}" ] || continue
   uninstall_skill "install-agents-file-template-skills" "${dest_root}"
 done
 

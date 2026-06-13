@@ -13,7 +13,7 @@ INSTALL_SCRIPT = ROOT / "scripts" / "install_agent_template_skills.sh"
 
 class InstallAgentTemplateSkillsTests(unittest.TestCase):
     def write_template_repo(self, directory: Path, skill_count: int = 3) -> Path:
-        repo = directory / "template-repo"
+        repo = directory / "template repo"
         skills = repo / "skills"
         skills.mkdir(parents=True)
         (repo / "templates.yml").write_text("---\nversion: 1\n", encoding="utf-8")
@@ -33,6 +33,7 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
             "CODEX_HOME": str(home / ".codex"),
             "CLAUDE_CONFIG_DIR": str(home / ".claude"),
             "XDG_CONFIG_HOME": str(home / ".config"),
+            "AGENTS_TEMPLATE_REPO": "",
         }
         return subprocess.run(
             [str(INSTALL_SCRIPT), "--repo", str(repo), *args],
@@ -41,6 +42,7 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             check=True,
             env=env,
+            cwd=home,
         )
 
     def assert_agent_link(self, home: Path, root: Path, skill_name: str) -> None:
@@ -51,7 +53,7 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
     def test_installs_all_discovered_skills_and_fans_out_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
-            home = directory / "home"
+            home = directory / "home with spaces"
             home.mkdir()
             repo = self.write_template_repo(directory)
 
