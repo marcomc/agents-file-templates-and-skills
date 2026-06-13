@@ -274,7 +274,6 @@ uninstall_skill() {
 repo=$(find_repo)
 canonical_root="${HOME}/.agents/skills"
 link_destinations=""
-remove_canonical="false"
 skill_names=$(discover_skill_names)
 
 if [ -z "${skill_names}" ]; then
@@ -295,7 +294,6 @@ for agent in ${agents}; do
     openai|codex)
       agent_dest=$(codex_skills_dir)
       add_dest "${agent_dest}"
-      remove_canonical="true"
       ;;
     claude|claude-code)
       agent_dest=$(claude_skills_dir)
@@ -323,6 +321,35 @@ for agent in ${agents}; do
   esac
 done
 
+remove_canonical_if_unused() {
+  skill_name=${1}
+  canonical_target="${canonical_root}/${skill_name}"
+  canonical_in_use="false"
+
+  for target in \
+    "$(codex_skills_dir)/${skill_name}" \
+    "$(claude_skills_dir)/${skill_name}" \
+    "$(opencode_skills_dir)/${skill_name}" \
+    "$(copilot_skills_dir)/${skill_name}" \
+    "$(gemini_skills_dir)/${skill_name}" \
+    "${HOME}/.openclaw/skills/${skill_name}" \
+    "${HOME}/.clawdbot/skills/${skill_name}" \
+    "${HOME}/.moltbot/skills/${skill_name}"
+  do
+    if [ -L "${target}" ]; then
+      link_target=$(readlink "${target}")
+      if [ "${link_target}" = "${canonical_target}" ]; then
+        canonical_in_use="true"
+        break
+      fi
+    fi
+  done
+
+  if [ "${canonical_in_use}" = "false" ]; then
+    uninstall_skill "${skill_name}" "${canonical_root}"
+  fi
+}
+
 for skill_name in ${skill_names}; do
   source="${repo}/skills/${skill_name}"
   if [ "${action}" = "uninstall" ]; then
@@ -330,9 +357,7 @@ for skill_name in ${skill_names}; do
       [ -n "${dest_root}" ] || continue
       uninstall_skill "${skill_name}" "${dest_root}"
     done
-    if [ "${remove_canonical}" = "true" ]; then
-      uninstall_skill "${skill_name}" "${canonical_root}"
-    fi
+    remove_canonical_if_unused "${skill_name}"
     continue
   fi
 
@@ -348,9 +373,7 @@ printf '%s\n' "${link_destinations}" | while IFS= read -r dest_root; do
   uninstall_skill "install-agents-file-template-skills" "${dest_root}"
 done
 
-if [ "${remove_canonical}" = "true" ]; then
-  uninstall_skill "install-agents-file-template-skills" "${canonical_root}"
-fi
+remove_canonical_if_unused "install-agents-file-template-skills"
 
 if [ "${apply}" != "true" ]; then
   echo "Dry run only. Re-run with --apply to ${action}."

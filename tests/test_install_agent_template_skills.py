@@ -115,6 +115,46 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
             self.assertEqual(os.readlink(canonical_skill), str(repo / "skills" / "skill-1"))
             self.assert_agent_link(home, home / ".codex" / "skills", "skill-1")
 
+    def test_uninstall_non_codex_agent_removes_orphaned_canonical_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            home = directory / "home"
+            home.mkdir()
+            repo = self.write_template_repo(directory, skill_count=1)
+
+            self.run_installer(home, repo, "--agent", "claude", "--apply")
+            self.run_installer(home, repo, "--agent", "claude", "--uninstall", "--apply")
+
+            self.assertFalse((home / ".claude" / "skills" / "skill-1").exists())
+            self.assertFalse((home / ".agents" / "skills" / "skill-1").exists())
+
+    def test_uninstall_one_agent_keeps_canonical_skill_used_by_other_links(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            home = directory / "home"
+            home.mkdir()
+            repo = self.write_template_repo(directory, skill_count=1)
+
+            self.run_installer(
+                home,
+                repo,
+                "--agent",
+                "codex",
+                "--agent",
+                "claude",
+                "--apply",
+            )
+            self.run_installer(home, repo, "--agent", "claude", "--uninstall", "--apply")
+
+            self.assertFalse((home / ".claude" / "skills" / "skill-1").exists())
+            self.assertTrue((home / ".agents" / "skills" / "skill-1" / "SKILL.md").is_file())
+            self.assert_agent_link(home, home / ".codex" / "skills", "skill-1")
+
+            self.run_installer(home, repo, "--agent", "codex", "--uninstall", "--apply")
+
+            self.assertFalse((home / ".codex" / "skills" / "skill-1").exists())
+            self.assertFalse((home / ".agents" / "skills" / "skill-1").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
