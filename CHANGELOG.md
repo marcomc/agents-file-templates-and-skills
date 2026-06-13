@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   symlinks.
 - Remove orphaned canonical skill copies when uninstalling non-Codex agents
   without breaking canonical copies still referenced by another agent.
+- Keep unknown-agent uninstalls non-destructive and make dry-run uninstall
+  previews include canonical skill copies that would become orphaned.
 
 ## [1.1.0] - 2026-06-06
 

@@ -155,6 +155,37 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
             self.assertFalse((home / ".codex" / "skills" / "skill-1").exists())
             self.assertFalse((home / ".agents" / "skills" / "skill-1").exists())
 
+    def test_uninstall_unknown_agent_does_not_remove_canonical_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            home = directory / "home"
+            home.mkdir()
+            repo = self.write_template_repo(directory, skill_count=1)
+
+            self.run_installer(home, repo, "--agent", "claude", "--apply")
+            result = self.run_installer(home, repo, "--agent", "claud", "--uninstall", "--apply")
+
+            self.assertIn("No known agents selected; nothing to uninstall.", result.stdout)
+            self.assertTrue((home / ".agents" / "skills" / "skill-1" / "SKILL.md").is_file())
+            self.assert_agent_link(home, home / ".claude" / "skills", "skill-1")
+
+    def test_uninstall_dry_run_reports_orphaned_canonical_skill_removal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            home = directory / "home"
+            home.mkdir()
+            repo = self.write_template_repo(directory, skill_count=1)
+
+            self.run_installer(home, repo, "--agent", "claude", "--apply")
+            result = self.run_installer(home, repo, "--agent", "claude", "--uninstall")
+
+            self.assertIn(
+                f"would remove {home / '.agents' / 'skills' / 'skill-1'}",
+                result.stdout,
+            )
+            self.assertTrue((home / ".agents" / "skills" / "skill-1" / "SKILL.md").is_file())
+            self.assert_agent_link(home, home / ".claude" / "skills", "skill-1")
+
 
 if __name__ == "__main__":
     unittest.main()

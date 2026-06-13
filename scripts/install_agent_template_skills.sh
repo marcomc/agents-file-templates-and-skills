@@ -274,6 +274,7 @@ uninstall_skill() {
 repo=$(find_repo)
 canonical_root="${HOME}/.agents/skills"
 link_destinations=""
+known_agent_selected="false"
 skill_names=$(discover_skill_names)
 
 if [ -z "${skill_names}" ]; then
@@ -294,32 +295,46 @@ for agent in ${agents}; do
     openai|codex)
       agent_dest=$(codex_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     claude|claude-code)
       agent_dest=$(claude_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     opencode)
       agent_dest=$(opencode_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     copilot|github-copilot)
       agent_dest=$(copilot_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     gemini)
       agent_dest=$(gemini_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     openclaw)
       agent_dest=$(openclaw_skills_dir)
       add_dest "${agent_dest}"
+      known_agent_selected="true"
       ;;
     *)
       echo "skip ${agent}: unknown agent"
       ;;
   esac
 done
+
+if [ "${known_agent_selected}" = "false" ]; then
+  echo "No known agents selected; nothing to ${action}."
+  if [ "${apply}" != "true" ]; then
+    echo "Dry run only. Re-run with --apply to ${action}."
+  fi
+  exit 0
+fi
 
 remove_canonical_if_unused() {
   skill_name=${1}
@@ -336,6 +351,12 @@ remove_canonical_if_unused() {
     "${HOME}/.clawdbot/skills/${skill_name}" \
     "${HOME}/.moltbot/skills/${skill_name}"
   do
+    target_root=$(parent_dir "${target}")
+    case "${newline}${link_destinations}${newline}" in
+      *"${newline}${target_root}${newline}"*) continue ;;
+      *) ;;
+    esac
+
     if [ -L "${target}" ]; then
       link_target=$(readlink "${target}")
       if [ "${link_target}" = "${canonical_target}" ]; then
