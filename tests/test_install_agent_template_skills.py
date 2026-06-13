@@ -186,6 +186,28 @@ class InstallAgentTemplateSkillsTests(unittest.TestCase):
             self.assertTrue((home / ".agents" / "skills" / "skill-1" / "SKILL.md").is_file())
             self.assert_agent_link(home, home / ".claude" / "skills", "skill-1")
 
+    def test_uninstall_non_codex_agent_preserves_unmarked_canonical_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            home = directory / "home"
+            home.mkdir()
+            repo = self.write_template_repo(directory, skill_count=1)
+            canonical_skill = home / ".agents" / "skills" / "skill-1"
+            claude_root = home / ".claude" / "skills"
+            canonical_skill.mkdir(parents=True)
+            (canonical_skill / "SKILL.md").write_text("# Existing Codex skill\n", encoding="utf-8")
+            claude_root.mkdir(parents=True)
+            os.symlink(canonical_skill, claude_root / "skill-1")
+
+            self.run_installer(home, repo, "--agent", "claude", "--uninstall", "--apply")
+
+            self.assertFalse((claude_root / "skill-1").exists())
+            self.assertTrue((canonical_skill / "SKILL.md").is_file())
+            self.assertEqual(
+                (canonical_skill / "SKILL.md").read_text(encoding="utf-8"),
+                "# Existing Codex skill\n",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -216,10 +216,27 @@ copy_dir() {
   cp -R "${source}" "${target}"
 }
 
+canonical_cleanup_marker() {
+  skill_name=${1}
+  printf '%s/.install-agent-template-skills/non-codex-owned/%s\n' \
+    "${canonical_root}" \
+    "${skill_name}"
+}
+
 install_canonical_skill() {
   source=${1}
   skill_name=$(basename -- "${source}")
   target="${canonical_root}/${skill_name}"
+  cleanup_marker=$(canonical_cleanup_marker "${skill_name}")
+  write_cleanup_marker="false"
+
+  if [ "${codex_agent_selected}" = "false" ]; then
+    if [ ! -e "${target}" ] && [ ! -L "${target}" ]; then
+      write_cleanup_marker="true"
+    elif [ -f "${cleanup_marker}" ]; then
+      write_cleanup_marker="true"
+    fi
+  fi
 
   if [ "${apply}" != "true" ]; then
     echo "would ${mode} ${source} -> ${target}"
@@ -237,6 +254,14 @@ install_canonical_skill() {
     mkdir -p "${target}/config"
     printf '%s\n' "${repo}" > "${target}/config/template_repo_path.txt"
     echo "copied ${source} -> ${target}"
+  fi
+
+  if [ "${write_cleanup_marker}" = "true" ]; then
+    cleanup_marker_parent=$(parent_dir "${cleanup_marker}")
+    mkdir -p "${cleanup_marker_parent}"
+    : > "${cleanup_marker}"
+  else
+    rm -f "${cleanup_marker}"
   fi
 }
 
@@ -275,6 +300,7 @@ repo=$(find_repo)
 canonical_root="${HOME}/.agents/skills"
 link_destinations=""
 known_agent_selected="false"
+codex_agent_selected="false"
 skill_names=$(discover_skill_names)
 
 if [ -z "${skill_names}" ]; then
@@ -296,6 +322,7 @@ for agent in ${agents}; do
       agent_dest=$(codex_skills_dir)
       add_dest "${agent_dest}"
       known_agent_selected="true"
+      codex_agent_selected="true"
       ;;
     claude|claude-code)
       agent_dest=$(claude_skills_dir)
@@ -339,7 +366,9 @@ fi
 remove_canonical_if_unused() {
   skill_name=${1}
   canonical_target="${canonical_root}/${skill_name}"
+  cleanup_marker=$(canonical_cleanup_marker "${skill_name}")
   canonical_in_use="false"
+  canonical_removal_allowed="false"
 
   for target in \
     "$(codex_skills_dir)/${skill_name}" \
@@ -366,8 +395,15 @@ remove_canonical_if_unused() {
     fi
   done
 
-  if [ "${canonical_in_use}" = "false" ]; then
+  if [ "${codex_agent_selected}" = "true" ] || [ -f "${cleanup_marker}" ]; then
+    canonical_removal_allowed="true"
+  fi
+
+  if [ "${canonical_in_use}" = "false" ] && [ "${canonical_removal_allowed}" = "true" ]; then
     uninstall_skill "${skill_name}" "${canonical_root}"
+    if [ "${apply}" = "true" ]; then
+      rm -f "${cleanup_marker}"
+    fi
   fi
 }
 
