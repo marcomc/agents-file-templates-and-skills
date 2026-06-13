@@ -90,12 +90,14 @@ cd agents-file-templates-and-skills
 make install AGENTS="openai claude opencode"
 ```
 
-By default, the installer copies skills into each agent's skill directory. Add
-`--mode symlink` if you want each installed skill to point back to this central
-repository instead:
+By default, the installer copies every `skills/<name>/SKILL.md` skill into
+`${HOME}/.agents/skills`, then creates agent-specific symlinks back to that
+canonical location. Add `--mode symlink` if you want the canonical
+`${HOME}/.agents/skills/<name>` entries to point back to this repository
+instead:
 
 ```bash
-make install-symlink AGENTS="openai claude"
+make install-symlink AGENTS="codex claude"
 ```
 
 Remove installed skills with:
@@ -214,15 +216,19 @@ has loaded this repository's skills. Use `make install` or the underlying shell
 script:
 
 ```bash
-scripts/install_agent_template_skills.sh --agent openai --agent claude --apply
+scripts/install_agent_template_skills.sh --agent codex --agent claude --apply
 ```
 
 If no `--agent` is provided and the script is attached to a terminal, it asks
 which agents to install for. In non-interactive mode it defaults to OpenAI/Codex.
 
 The installer writes a local `config/template_repo_path.txt` into installed
-copied skills so they can find this template repository later without users
-exporting environment variables. Symlink installs do not need that config.
+copied canonical skills so they can find this template repository later without
+users exporting environment variables. Symlink installs do not need that config.
+
+Selected agents receive symlinks from their native skill directories to
+`${HOME}/.agents/skills/<name>`. The supported fanout targets are Codex,
+Claude Code, OpenCode, GitHub Copilot, Gemini CLI, and OpenClaw.
 
 ## Vendor Conventions
 

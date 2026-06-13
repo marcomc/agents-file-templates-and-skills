@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-06-13
+
+### Changed
+
+- The skill installer now discovers all repository skills automatically,
+  installs them canonically under `${HOME}/.agents/skills`, and fans out
+  symlinks to selected agent-specific skill directories.
+
 ## [1.1.0] - 2026-06-06
 
 ### Added in 1.1.0
