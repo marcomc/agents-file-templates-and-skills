@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import importlib.util
 import json
 import os
 import re
@@ -51,6 +52,9 @@ KEYWORDS = (
     "shellcheck",
     "markdownlint",
 )
+LEARNING_UPSTREAM_DIR = ".work/learning-upstream"
+OUT_OF_SYNC_DIR = ".work/out-of-sync"
+LEARNED_RULES_HEADING = "## Learned Rules"
 
 
 def load_manifest(template_repo: Path) -> dict:
@@ -124,6 +128,26 @@ def instruction_kind(path: Path) -> str:
     return "unknown"
 
 
+def instruction_agent(path: Path, text: str = "", agent_global_paths: dict[str, str] | None = None) -> str:
+    kind = instruction_kind(path)
+    if kind in {"claude", "gemini"}:
+        return kind
+    if kind.startswith("copilot-"):
+        return "copilot"
+    if kind == "agents" and agent_global_paths:
+        standard_path = agent_global_paths.get("standard")
+        for agent, global_path in agent_global_paths.items():
+            if global_path != standard_path and f"Follow `{global_path}`" in text:
+                return agent
+    return "standard"
+
+
+def nested_instruction_dirs(current_path: Path) -> set[str]:
+    if current_path.name == ".github":
+        return {"instructions"}
+    return {".github"}
+
+
 def find_agents(roots: list[Path], max_depth: int, ignored: set[str]) -> list[Path]:
     found: list[Path] = []
     for root in roots:
@@ -135,7 +159,8 @@ def find_agents(roots: list[Path], max_depth: int, ignored: set[str]) -> list[Pa
                 continue
             depth = 0 if rel == Path(".") else len(rel.parts)
             if depth >= max_depth:
-                dirs[:] = []
+                allowed = nested_instruction_dirs(current_path)
+                dirs[:] = [item for item in dirs if item not in ignored and item in allowed]
             else:
                 dirs[:] = [item for item in dirs if item not in ignored]
             for name in files:
@@ -293,6 +318,276 @@ def draft_for_template(template_repo: Path, records: list[dict], template: str) 
     return path
 
 
+def clean_field(value: str) -> str:
+    return value.strip().strip("`").strip()
+
+
+def parse_markdown_sections(text: str) -> dict[str, str]:
+    sections: dict[str, list[str]] = {}
+    current = ""
+    for raw in text.splitlines():
+        if raw.startswith("## "):
+            current = raw.removeprefix("## ").strip()
+            sections.setdefault(current, [])
+            continue
+        if current:
+            sections[current].append(raw)
+    return {key: "\n".join(value).strip() for key, value in sections.items()}
+
+
+def bullet_values(section_text: str) -> list[str]:
+    values: list[str] = []
+    for raw in section_text.splitlines():
+        line = raw.strip()
+        if not line.startswith("- "):
+            continue
+        value = clean_field(line.removeprefix("- "))
+        if value and value != "none-recorded":
+            values.append(value)
+    return values
+
+
+def parse_learning_upstream_draft(path: Path) -> dict[str, str]:
+    record = {
+        "path": str(path),
+        "lesson_family": path.stem,
+        "proposed_template": "not-recorded",
+        "review_status": "not-recorded",
+        "privacy_verdict": "not-recorded",
+        "recurrence_check": "not-recorded",
+        "candidate_rule": "",
+        "prevention_targets": "",
+        "detection_targets": "",
+        "refresh_triggers": "",
+    }
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    for raw in text.splitlines():
+        line = raw.strip()
+        fields = {
+            "- Lesson family:": "lesson_family",
+            "- Proposed template:": "proposed_template",
+            "- Review status:": "review_status",
+            "- Privacy verdict:": "privacy_verdict",
+            "- Recurrence check:": "recurrence_check",
+        }
+        for prefix, key in fields.items():
+            if line.startswith(prefix):
+                record[key] = clean_field(line.removeprefix(prefix))
+    sections = parse_markdown_sections(text)
+    record["candidate_rule"] = sections.get("Candidate Rule", "").strip()
+    record["prevention_targets"] = ", ".join(bullet_values(sections.get("Prevention Targets", "")))
+    record["detection_targets"] = ", ".join(bullet_values(sections.get("Detection Targets", "")))
+    record["refresh_triggers"] = ", ".join(bullet_values(sections.get("Refresh Triggers", "")))
+    return record
+
+
+def normalize_rule(text: str) -> str:
+    lowered = text.lower().replace("`", "")
+    lowered = re.sub(r"[-_/]+", " ", lowered)
+    lowered = re.sub(r"\s+", " ", lowered).strip()
+    lowered = re.sub(r"[^a-z0-9 ]+", "", lowered)
+    return lowered
+
+
+def template_path_for_id(template_repo: Path, manifest: dict, template_id: str) -> Path:
+    for item in manifest.get("project_types", []):
+        if item.get("id") == template_id:
+            return template_repo / item["path"]
+    if manifest.get("global_template", {}).get("id") == template_id:
+        return template_repo / manifest["global_template"]["path"]
+    raise SystemExit(f"Unknown template id in learning draft: {template_id}")
+
+
+def append_learned_rule(template_text: str, candidate_rule: str) -> tuple[str, str]:
+    normalized_candidate = normalize_rule(candidate_rule)
+    existing_rules = [
+        normalize_rule(line.strip().removeprefix("- "))
+        for line in template_text.splitlines()
+        if line.strip().startswith("- ")
+    ]
+    if normalized_candidate in existing_rules:
+        return template_text, "already-present"
+
+    bullet = candidate_rule.strip()
+    if not bullet.startswith("- "):
+        bullet = f"- {bullet}"
+
+    if LEARNED_RULES_HEADING in template_text:
+        lines = template_text.rstrip().splitlines()
+        for idx, line in enumerate(lines):
+            if line.strip() != LEARNED_RULES_HEADING:
+                continue
+            insert_at = idx + 1
+            if insert_at < len(lines) and not lines[insert_at].strip():
+                insert_at += 1
+            lines.insert(insert_at, bullet)
+            return "\n".join(lines) + "\n", "updated"
+        return template_text, "already-present"
+
+    updated = template_text.rstrip() + f"\n\n{LEARNED_RULES_HEADING}\n\n{bullet}\n"
+    return updated, "updated"
+
+
+def apply_learning_upstream_draft(
+    template_repo: Path,
+    manifest: dict,
+    draft_path: Path,
+    *,
+    apply: bool,
+) -> dict[str, str]:
+    draft = parse_learning_upstream_draft(draft_path)
+    candidate_rule = draft["candidate_rule"].strip()
+    if not candidate_rule:
+        raise SystemExit(f"Learning draft is missing Candidate Rule: {draft_path}")
+    if privacy_notes(candidate_rule):
+        raise SystemExit(f"Learning draft candidate rule needs privacy review: {draft_path}")
+    if draft["privacy_verdict"] != "clean":
+        raise SystemExit(f"Learning draft privacy verdict is not clean: {draft_path}")
+    if draft["review_status"] != "approved":
+        raise SystemExit(f"Learning draft is not approved: {draft_path}")
+
+    template_path = template_path_for_id(template_repo, manifest, draft["proposed_template"])
+    original = template_path.read_text(encoding="utf-8")
+    updated, action = append_learned_rule(original, candidate_rule)
+    if apply and updated != original:
+        template_path.write_text(updated, encoding="utf-8")
+    return {
+        "action": action if apply else f"would-{action}",
+        "draft": str(draft_path),
+        "template": str(template_path),
+        "lesson_family": draft["lesson_family"],
+        "proposed_template": draft["proposed_template"],
+        "refresh_triggers": draft["refresh_triggers"],
+    }
+
+
+def write_learning_upstream_summary(template_repo: Path) -> Path:
+    draft_dir = template_repo / LEARNING_UPSTREAM_DIR
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    drafts = [path for path in sorted(draft_dir.glob("*.md")) if path.name != "summary.md"]
+    records = [parse_learning_upstream_draft(path) for path in drafts]
+
+    by_template: dict[str, int] = defaultdict(int)
+    by_status: dict[str, int] = defaultdict(int)
+    by_privacy: dict[str, int] = defaultdict(int)
+    by_recurrence: dict[str, int] = defaultdict(int)
+    for record in records:
+        by_template[record["proposed_template"]] += 1
+        by_status[record["review_status"]] += 1
+        by_privacy[record["privacy_verdict"]] += 1
+        by_recurrence[record["recurrence_check"]] += 1
+
+    summary = [
+        "# Learning Upstream Summary",
+        "",
+        f"- Generated: {date.today().isoformat()}",
+        f"- Draft files: {len(records)}",
+        "",
+        "## Proposed Templates",
+        "",
+    ]
+    summary.extend(f"- `{key}`: {count}" for key, count in sorted(by_template.items()))
+    if not by_template:
+        summary.append("- `none`: 0")
+    summary.extend(["", "## Review Status", ""])
+    summary.extend(f"- `{key}`: {count}" for key, count in sorted(by_status.items()))
+    if not by_status:
+        summary.append("- `none`: 0")
+    summary.extend(["", "## Privacy Verdict", ""])
+    summary.extend(f"- `{key}`: {count}" for key, count in sorted(by_privacy.items()))
+    if not by_privacy:
+        summary.append("- `none`: 0")
+    summary.extend(["", "## Recurrence", ""])
+    summary.extend(f"- `{key}`: {count}" for key, count in sorted(by_recurrence.items()))
+    if not by_recurrence:
+        summary.append("- `none`: 0")
+    summary.extend(["", "## Drafts", ""])
+    for record in records:
+        summary.append(
+            f"- `{record['lesson_family']}` -> `{record['proposed_template']}` "
+            f"({record['review_status']}, {record['privacy_verdict']})"
+        )
+    if not records:
+        summary.append("- No draft files found.")
+    summary.append("")
+
+    path = draft_dir / "summary.md"
+    path.write_text("\n".join(summary), encoding="utf-8")
+    return path
+
+
+def load_init_helper():
+    helper = Path(__file__).resolve().parents[2] / "init-agents-file" / "scripts" / "init_agents_file.py"
+    spec = importlib.util.spec_from_file_location("init_agents_file_helper", helper)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"Could not load init-agents-file helper: {helper}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write_out_of_sync_report(
+    template_repo: Path,
+    roots: list[Path],
+    max_depth: int,
+    ignored: set[str],
+) -> Path:
+    init_helper = load_init_helper()
+    candidates = []
+    for path in find_agents(roots, max_depth, ignored):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if init_helper.GENERATED_MARKER in text:
+            candidates.append((path, text))
+    records = []
+    for instruction_path, text in candidates:
+        project = project_root_for_instruction(instruction_path)
+        output_name = instruction_path.relative_to(project).as_posix()
+        agent = instruction_agent(instruction_path, text, init_helper.AGENT_GLOBAL_PATHS)
+        records.append(
+            init_helper.check_output(
+                project,
+                template_repo,
+                [],
+                [],
+                agent,
+                output_name,
+            )
+        )
+
+    report_dir = template_repo / OUT_OF_SYNC_DIR
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / "projects.json").write_text(json.dumps(records, indent=2), encoding="utf-8")
+
+    counts: dict[str, int] = defaultdict(int)
+    for record in records:
+        counts[str(record["status"])] += 1
+
+    summary = [
+        "# Out Of Sync Summary",
+        "",
+        f"- Generated: {date.today().isoformat()}",
+        f"- Generated project files checked: {len(records)}",
+        "",
+        "## Status Counts",
+        "",
+    ]
+    if counts:
+        summary.extend(f"- `{status}`: {count}" for status, count in sorted(counts.items()))
+    else:
+        summary.append("- `none`: 0")
+    summary.extend(["", "## Projects", ""])
+    for record in records:
+        types = ", ".join(f"`{item}`" for item in record.get("template_types", [])) or "`none`"
+        summary.append(f"- `{record['status']}` {record['output']} ({types})")
+    if not records:
+        summary.append("- No generated project files found.")
+    summary.append("")
+
+    path = report_dir / "summary.md"
+    path.write_text("\n".join(summary), encoding="utf-8")
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--template-repo", default=None)
@@ -300,12 +595,42 @@ def main() -> int:
     parser.add_argument("--max-depth", type=int, default=None)
     parser.add_argument("--template", default="")
     parser.add_argument("--current-project", default="")
+    parser.add_argument("--learning-upstream-summary", action="store_true")
+    parser.add_argument("--out-of-sync-report", action="store_true")
+    parser.add_argument("--apply-learning-draft", type=Path, default=None)
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     template_repo = Path(args.template_repo).expanduser().resolve() if args.template_repo else default_template_repo()
+    if args.apply_learning_draft:
+        manifest = load_manifest(template_repo)
+        result = apply_learning_upstream_draft(
+            template_repo,
+            manifest,
+            args.apply_learning_draft.expanduser().resolve(),
+            apply=args.apply,
+        )
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"{result['action']} {result['template']}")
+        return 0
+
+    if args.learning_upstream_summary and not args.scan_root and not args.current_project and not args.template:
+        path = write_learning_upstream_summary(template_repo)
+        print(f"Wrote {path}")
+        return 0
+
     manifest = load_manifest(template_repo)
     ignored = set(manifest.get("scan_defaults", {}).get("ignored_dirs", []))
     max_depth = args.max_depth or int(manifest.get("scan_defaults", {}).get("max_depth", 2))
+
+    if args.out_of_sync_report and not args.current_project and not args.template:
+        roots = [Path(item).expanduser().resolve() for item in args.scan_root] or [Path.cwd()]
+        path = write_out_of_sync_report(template_repo, roots, max_depth, ignored)
+        print(f"Wrote {path}")
+        return 0
 
     if args.current_project:
         current_project = Path(args.current_project).expanduser().resolve()
@@ -327,6 +652,14 @@ def main() -> int:
 
     if args.template:
         path = draft_for_template(template_repo, records, args.template)
+        print(f"Wrote {path}")
+
+    if args.learning_upstream_summary:
+        path = write_learning_upstream_summary(template_repo)
+        print(f"Wrote {path}")
+
+    if args.out_of_sync_report:
+        path = write_out_of_sync_report(template_repo, roots, max_depth, ignored)
         print(f"Wrote {path}")
 
     return 0

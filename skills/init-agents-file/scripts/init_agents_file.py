@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import os
 import re
 import sys
@@ -19,6 +20,12 @@ except ImportError:  # pragma: no cover
 
 BEGIN_LOCAL = "<!-- BEGIN PROJECT LOCAL -->"
 END_LOCAL = "<!-- END PROJECT LOCAL -->"
+GENERATED_MARKER = "<!-- generated-by: agents-file-templates-and-skills/init-agents-file -->"
+GENERATED_DATE_PATTERN = re.compile(r"<!-- generated-date: .*? -->")
+TEMPLATE_MARKER_PATTERN = re.compile(r"<!-- BEGIN TEMPLATE: (?P<type>[^>]+) -->")
+PLACEHOLDER_TOKEN_PATTERN = re.compile(r"\$\{(?P<key>[A-Za-z_][A-Za-z0-9_]*)\}")
+DERIVED_PLACEHOLDERS = {"GENERATED_DATE", "PROJECT_NAME"}
+RECOVERABLE_BASE_PLACEHOLDERS = {"PROJECT_DESCRIPTION"}
 
 AGENT_OUTPUTS = {
     "standard": "AGENTS.md",
@@ -107,11 +114,11 @@ def existing_local_section(path: Path) -> str:
 
 def placeholder_values(project: Path, pairs: list[str], agent: str) -> dict[str, str]:
     values = {
-        "HOME": str(Path.home()),
+        "HOME": "${HOME}",
         "USER_NAME": os.environ.get("USER", ""),
-        "USER_WORKSPACE_ROOT": str(Path.home()),
+        "USER_WORKSPACE_ROOT": "${HOME}",
         "GLOBAL_AGENTS_PATH": AGENT_GLOBAL_PATHS.get(agent, AGENT_GLOBAL_PATHS["standard"]),
-        "MARKDOWNLINT_CONFIG": str(Path.home() / ".markdownlint.json"),
+        "MARKDOWNLINT_CONFIG": "${HOME}/.markdownlint.json",
         "OBSIDIAN_VAULT_PATH": "${OBSIDIAN_VAULT_PATH}",
         "PRIMARY_DOMAIN": "${PRIMARY_DOMAIN}",
         "AUTHORIZED_WORK_CONTEXT": "${AUTHORIZED_WORK_CONTEXT}",
@@ -198,6 +205,119 @@ def render(project: Path, template_repo: Path, forced_types: list[str], pairs: l
     return "\n".join(output).replace("\n\n\n", "\n\n")
 
 
+def generated_types(text: str) -> list[str]:
+    types: list[str] = []
+    for match in TEMPLATE_MARKER_PATTERN.finditer(text):
+        type_id = match.group("type").strip()
+        if type_id and type_id not in types:
+            types.append(type_id)
+    return types
+
+
+def normalize_generated(text: str) -> str:
+    return GENERATED_DATE_PATTERN.sub("<!-- generated-date: CHECK -->", text).strip()
+
+
+def placeholder_pattern(rendered: str, sentinels: dict[str, str]) -> str:
+    reverse = {value: key for key, value in sentinels.items()}
+    sentinel_re = re.compile("|".join(re.escape(value) for value in sentinels.values()))
+    parts: list[str] = []
+    seen: set[str] = set()
+    cursor = 0
+    for match in sentinel_re.finditer(rendered):
+        parts.append(re.escape(rendered[cursor : match.start()]))
+        key = reverse[match.group(0)]
+        group = f"placeholder_{key}"
+        if key in seen:
+            parts.append(f"(?P={group})")
+        else:
+            parts.append(f"(?P<{group}>.*?)")
+            seen.add(key)
+        cursor = match.end()
+    parts.append(re.escape(rendered[cursor:]))
+    return "".join(parts)
+
+
+def recover_render_pairs(
+    project: Path,
+    template_repo: Path,
+    selected: list[str],
+    agent: str,
+    output_name: str,
+    current: str,
+) -> list[str]:
+    keys = sorted(recoverable_placeholder_keys(template_repo, selected))
+    sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
+    sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
+    rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name)
+    match = re.fullmatch(
+        placeholder_pattern(normalize_generated(rendered), sentinels),
+        normalize_generated(current),
+        re.DOTALL,
+    )
+    if not match:
+        return []
+    return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
+
+
+def recoverable_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
+    keys = {*RECOVERABLE_BASE_PLACEHOLDERS, *template_placeholder_keys(template_repo, selected)}
+    return keys - DERIVED_PLACEHOLDERS
+
+
+def template_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
+    manifest = load_manifest(template_repo)
+    paths = template_map(manifest)
+    keys: set[str] = set()
+    for type_id in selected:
+        rel_path = paths.get(type_id)
+        if not rel_path:
+            continue
+        text = (template_repo / rel_path).read_text(encoding="utf-8")
+        keys.update(match.group("key") for match in PLACEHOLDER_TOKEN_PATTERN.finditer(text))
+    return keys
+
+
+def check_output(
+    project: Path,
+    template_repo: Path,
+    forced_types: list[str],
+    pairs: list[str],
+    agent: str,
+    output_name: str,
+) -> dict[str, object]:
+    output = project / output_name
+    manifest = load_manifest(template_repo)
+    detected = forced_types or detect_types(project, manifest)
+    if not output.exists():
+        return {
+            "project": str(project),
+            "output": str(output),
+            "status": "missing",
+            "template_types": detected,
+        }
+
+    current = output.read_text(encoding="utf-8", errors="ignore")
+    if GENERATED_MARKER not in current:
+        return {
+            "project": str(project),
+            "output": str(output),
+            "status": "not-generated",
+            "template_types": generated_types(current),
+        }
+
+    selected = forced_types or generated_types(current) or detected
+    recovered = recover_render_pairs(project, template_repo, selected, agent, output_name, current)
+    expected = render(project, template_repo, selected, [*recovered, *pairs], agent, output_name)
+    status = "current" if normalize_generated(current) == normalize_generated(expected) else "out-of-sync"
+    return {
+        "project": str(project),
+        "output": str(output),
+        "status": status,
+        "template_types": selected,
+    }
+
+
 def ancestors(path: Path) -> list[Path]:
     resolved = path.expanduser().resolve()
     return [resolved, *resolved.parents]
@@ -255,12 +375,23 @@ def main() -> int:
     parser.add_argument("--output", default=None)
     parser.add_argument("--set", dest="sets", action="append", default=[])
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     project = Path(args.project).expanduser().resolve()
     template_repo = Path(args.template_repo).expanduser().resolve() if args.template_repo else default_template_repo(project)
     forced = [item.strip() for item in args.types.split(",") if item.strip()]
     output_name = output_for_agent(args.agent, args.output_mode, args.output)
+
+    if args.check:
+        payload = check_output(project, template_repo, forced, args.sets, args.agent, output_name)
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"{payload['status']} {payload['output']}")
+        return 0 if payload["status"] == "current" else 1
+
     content = render(project, template_repo, forced, args.sets, args.agent, output_name)
 
     output = project / output_name

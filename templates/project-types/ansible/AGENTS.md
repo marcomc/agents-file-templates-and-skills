@@ -17,7 +17,7 @@
   when several adjacent tasks use the same condition.
 - Keep secrets out of logs with `no_log: true` on secret-bearing tasks and facts.
 
-## Validation
+## Ansible Validation
 
 - Run the project-approved Ansible lint, syntax, and scenario checks.
 - Treat line-length warnings according to the project policy.

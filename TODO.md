@@ -27,9 +27,9 @@
 - Add template provenance metadata.
   - Keep source annotations generic and non-identifying.
   - Do not leak private project names or paths in committed templates.
-- Add an out-of-sync checker.
-  - Compare generated project `AGENTS.md` files with the current template
-    manifest and report drift.
+- Extend draft-first learning upstreaming.
+  - Add batched reviewed apply for multiple approved drafts.
+  - Add project refresh orchestration after the out-of-sync report is reviewed.
 - Add optional pre-commit integration.
   - Run privacy checks and Markdown validation before committing template
     changes.

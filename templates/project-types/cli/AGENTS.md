@@ -10,7 +10,7 @@
 - Preserve output contracts for scripts and automation. Human-friendly color,
   links, or progress output should be disabled or guarded for non-TTY output.
 
-## Validation
+## CLI Validation
 
 - Test help output, error paths, and at least one realistic success path.
 - Update README examples and changelog entries when user-visible CLI behavior

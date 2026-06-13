@@ -17,6 +17,12 @@ instructions. It can mine `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
   projects.
 - Current-project promotion: extract reusable rules from the current project and
   propose them for one or more templates.
+- Learning-upstream review: summarize ignored draft handoffs created by the
+  learning system.
+- Reviewed draft apply: write approved clean drafts into curated templates only
+  when `--apply` is passed.
+- Out-of-sync reporting: identify generated project instruction files that need
+  refresh after template changes.
 
 ## Workflow
 
@@ -55,6 +61,40 @@ python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/upd
   --template-repo "${AGENTS_TEMPLATE_REPO}" \
   --current-project . \
   --template python
+```
+
+Summarize learning-upstream drafts:
+
+```bash
+python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/update_agents_templates.py" \
+  --template-repo "${AGENTS_TEMPLATE_REPO}" \
+  --learning-upstream-summary
+```
+
+Preview applying an approved clean learning draft:
+
+```bash
+python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/update_agents_templates.py" \
+  --template-repo "${AGENTS_TEMPLATE_REPO}" \
+  --apply-learning-draft "${AGENTS_TEMPLATE_REPO}/.work/learning-upstream/<lesson_family>.md"
+```
+
+Apply after review:
+
+```bash
+python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/update_agents_templates.py" \
+  --template-repo "${AGENTS_TEMPLATE_REPO}" \
+  --apply-learning-draft "${AGENTS_TEMPLATE_REPO}/.work/learning-upstream/<lesson_family>.md" \
+  --apply
+```
+
+Report generated project files that need refresh:
+
+```bash
+python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/update_agents_templates.py" \
+  --template-repo "${AGENTS_TEMPLATE_REPO}" \
+  --scan-root "${PROJECT_SCAN_ROOT}" \
+  --out-of-sync-report
 ```
 
 ## Scope Rules

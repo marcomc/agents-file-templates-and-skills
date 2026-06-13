@@ -8,7 +8,7 @@
 - Quote expansions by default.
 - Use arrays only in shells that support them.
 
-## Validation
+## Bash Validation
 
 - Run `shellcheck --enable=all` on edited shell scripts.
 - Fix warnings directly unless a suppression is required and justified near the

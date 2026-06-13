@@ -10,6 +10,9 @@ improving project-specific agent instructions.
 - [How to Use](#how-to-use)
 - [Configuration](#configuration)
 - [Skills](#skills)
+- [Composable Instructions](#composable-instructions)
+- [Auto-Learning Pipeline](#auto-learning-pipeline)
+- [Installation Script](#installation-script)
 - [Vendor Conventions](#vendor-conventions)
 - [Build Workflow](#build-workflow)
 - [Template Safety](#template-safety)
@@ -46,6 +49,8 @@ such as `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md`.
 ├── TODO.md
 ├── templates.yml
 ├── Makefile
+├── docs/
+│   └── composable-agent-instructions.md
 ├── scripts/
 │   ├── install_agent_template_skills.sh
 │   └── privacy_scan.py
@@ -166,9 +171,41 @@ Use this skill to update curated templates over time. It supports:
 - Single-template mining, such as updating only the Python template.
 - Current-project promotion, where reusable rules from the current project are
   proposed for one or more templates.
+- Learning-upstream summaries for ignored drafts created by
+  `agent-learning-system`.
+- Explicit reviewed apply for approved learning-upstream drafts.
+- Out-of-sync reports for generated project `AGENTS.md` files.
 
 Mining creates ignored working artifacts. Curated templates are updated only
 after review and privacy scrubbing.
+
+## Composable Instructions
+
+Reusable instruction composition is documented in
+[`docs/composable-agent-instructions.md`](docs/composable-agent-instructions.md).
+This model treats the global policy as a director file, project-type overlays as
+composable atoms, and project `AGENTS.md` files as generated compositions with a
+preserved local section.
+
+## Auto-Learning Pipeline
+
+This repository is the template side of the two-repository auto-learning
+pipeline. The orchestration runbook lives in
+`${HOME}/Development/agent-learning-system/docs/auto-learning-pipeline-automations.md`.
+
+The required weekly template automation runs in this repository and must:
+
+| Step | Requirement |
+| --- | --- |
+| Summarize | Inspect `.work/learning-upstream/` handoffs |
+| Gate | Apply only `Review status: approved` plus `Privacy verdict: clean` |
+| Validate | Run Markdown, Python, unit-test, and privacy checks |
+| Report | Write `.work/out-of-sync/` refresh reports |
+| Avoid | No stage, commit, push, pull request, or unrelated edits |
+
+Use
+[`docs/composable-agent-instructions.md#automation-integration`](docs/composable-agent-instructions.md#automation-integration)
+for the template-side command contract.
 
 ## Installation Script
 
@@ -235,10 +272,13 @@ Use placeholders such as `${HOME}`, `${USER_NAME}`, `${PRIMARY_DOMAIN}`,
 Validate changes before committing:
 
 ```bash
-markdownlint --config ~/.markdownlint.json README.md TODO.md templates/**/*.md skills/**/*.md
+markdownlint --config ~/.markdownlint.json README.md TODO.md docs/*.md templates/**/*.md skills/**/*.md
 python3 scripts/privacy_scan.py .
 python3 skills/init-agents-file/scripts/init_agents_file.py --project .
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --scan-root . --max-depth 2
+python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --learning-upstream-summary
+python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --scan-root . --out-of-sync-report
+python3 -m unittest discover -s tests
 shellcheck --enable=all scripts/install_agent_template_skills.sh
 scripts/install_agent_template_skills.sh --agent openai
 ```

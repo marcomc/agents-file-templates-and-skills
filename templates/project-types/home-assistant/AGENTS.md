@@ -11,7 +11,7 @@
   type, expiration semantics, storage behavior, and reload or restart behavior
   against the running application version.
 
-## Validation
+## Home Assistant Validation
 
 - Validate changes through the project-approved local or staging path before
   touching a live Home Assistant instance.

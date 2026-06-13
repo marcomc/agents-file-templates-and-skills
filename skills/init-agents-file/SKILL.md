@@ -45,6 +45,15 @@ python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/script
   --apply
 ```
 
+Check whether a generated project instruction file is current:
+
+```bash
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
+  --project . \
+  --check \
+  --json
+```
+
 Generate an agent-specific instruction filename:
 
 ```bash

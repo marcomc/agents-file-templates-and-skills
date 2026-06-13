@@ -1,9 +1,9 @@
 # AGENTS.md Instructions
 
 <!-- generated-by: agents-file-templates-and-skills/init-agents-file -->
-<!-- generated-date: 2026-05-11 -->
+<!-- generated-date: 2026-06-10 -->
 
-Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_scan: allow -->
+Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 
 ## Project Context
 
@@ -190,7 +190,6 @@ Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_
 ## Project Local Rules
 
 <!-- BEGIN PROJECT LOCAL -->
-
 ## Template Repository Guardrails
 
 - Treat this repository as public-facing even when the local checkout is private.
@@ -234,5 +233,4 @@ Follow `/Users/mmassari/AGENTS.md` for canonical user-wide policy. <!-- privacy_
 - Run `shellcheck --enable=all` on edited shell helper scripts.
 - Run `python3 scripts/privacy_scan.py .` before handoff.
 - Run a smoke test for edited skill scripts when behavior changes.
-
 <!-- END PROJECT LOCAL -->
