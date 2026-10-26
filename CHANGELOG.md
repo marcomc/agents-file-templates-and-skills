@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-10-26
+
+### Added
+
+- Shared `apple-app` instruction overlay for Xcode apps on macOS, iOS, and
+  iPadOS, including test evidence, compatible batches, and platform acceptance.
+- Detection and rendering coverage for nested Xcode projects, workspaces,
+  Apple resources, and explicit package-only app selection.
+
+### Fixed
+
+- Swift sources and `Package.swift` alone no longer select the macOS overlay
+  for mobile apps or packages targeting other platforms.
+
 ## [1.2.0] - 2026-06-13
 
 ### Added

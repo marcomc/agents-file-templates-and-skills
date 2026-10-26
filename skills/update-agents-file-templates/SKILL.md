@@ -32,6 +32,8 @@ instructions. It can mine `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
 4. Review drafts for conflicts, overlap, and privacy risk.
 5. Edit curated templates manually from the reviewed draft material.
 6. Run Markdown validation and the privacy scanner.
+7. Review the generated-file budget report before treating a large root file as
+   a template problem; keep directly loaded safety and validation rules intact.
 
 ## Commands
 
@@ -96,6 +98,10 @@ python3 "${AGENTS_TEMPLATE_REPO}/skills/update-agents-file-templates/scripts/upd
   --scan-root "${PROJECT_SCAN_ROOT}" \
   --out-of-sync-report
 ```
+
+The report includes each generated file's instruction-budget status. Treat an
+over-budget result as a routing review, not as permission to delete project
+local or mandatory safety rules.
 
 ## Scope Rules
 

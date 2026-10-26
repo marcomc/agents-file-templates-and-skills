@@ -23,9 +23,15 @@ END_LOCAL = "<!-- END PROJECT LOCAL -->"
 GENERATED_MARKER = "<!-- generated-by: agents-file-templates-and-skills/init-agents-file -->"
 GENERATED_DATE_PATTERN = re.compile(r"<!-- generated-date: .*? -->")
 TEMPLATE_MARKER_PATTERN = re.compile(r"<!-- BEGIN TEMPLATE: (?P<type>[^>]+) -->")
+TEMPLATE_SECTION_PATTERN = re.compile(
+    r"<!-- BEGIN TEMPLATE: (?P<type>[^>]+) -->\n(?P<body>.*?)\n<!-- END TEMPLATE: (?P=type) -->",
+    re.DOTALL,
+)
 PLACEHOLDER_TOKEN_PATTERN = re.compile(r"\$\{(?P<key>[A-Za-z_][A-Za-z0-9_]*)\}")
+PROJECT_DESCRIPTION_PATTERN = re.compile(r"^- Description:\s*(?P<value>.+)$", re.MULTILINE)
 DERIVED_PLACEHOLDERS = {"GENERATED_DATE", "PROJECT_NAME"}
 RECOVERABLE_BASE_PLACEHOLDERS = {"PROJECT_DESCRIPTION"}
+DEFAULT_BUDGET_WARNING_WORDS = 1_200
 
 AGENT_OUTPUTS = {
     "standard": "AGENTS.md",
@@ -246,6 +252,13 @@ def recover_render_pairs(
     output_name: str,
     current: str,
 ) -> list[str]:
+    recovered: dict[str, str] = {}
+    description_match = PROJECT_DESCRIPTION_PATTERN.search(current)
+    if description_match:
+        description = description_match.group("value").strip()
+        if description and description != "${PROJECT_DESCRIPTION}":
+            recovered["PROJECT_DESCRIPTION"] = description
+
     keys = sorted(recoverable_placeholder_keys(template_repo, selected))
     sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
     sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
@@ -256,8 +269,11 @@ def recover_render_pairs(
         re.DOTALL,
     )
     if not match:
-        return []
-    return [f"{key}={match.group(f'placeholder_{key}')}" for key in sentinels if sentinels[key] in rendered]
+        return [f"{key}={value}" for key, value in recovered.items()]
+    for key in sentinels:
+        if sentinels[key] in rendered:
+            recovered[key] = match.group(f"placeholder_{key}")
+    return [f"{key}={value}" for key, value in recovered.items()]
 
 
 def recoverable_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
@@ -315,6 +331,66 @@ def check_output(
         "output": str(output),
         "status": status,
         "template_types": selected,
+    }
+
+
+def word_count(text: str) -> int:
+    return len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'/-]*", text))
+
+
+def budget_warning_words(template_repo: Path, override: int | None) -> int:
+    if override is not None:
+        if override < 1:
+            raise SystemExit("--budget-warning-words must be at least 1")
+        return override
+    configured = load_manifest(template_repo).get("instruction_budget", {}).get("root_warning_words")
+    if configured is None:
+        return DEFAULT_BUDGET_WARNING_WORDS
+    if not isinstance(configured, int) or configured < 1:
+        raise SystemExit("instruction_budget.root_warning_words must be a positive integer")
+    return configured
+
+
+def budget_report(
+    project: Path,
+    template_repo: Path,
+    forced_types: list[str],
+    agent: str,
+    output_name: str,
+    warning_words: int | None = None,
+) -> dict[str, object]:
+    output = project / output_name
+    threshold = budget_warning_words(template_repo, warning_words)
+    if not output.exists():
+        return {
+            "project": str(project),
+            "output": str(output),
+            "status": "missing",
+            "word_count": 0,
+            "warning_words": threshold,
+            "local_rules_word_count": 0,
+            "template_sections": [],
+        }
+
+    current = output.read_text(encoding="utf-8", errors="ignore")
+    template_sections = [
+        {"template": match.group("type").strip(), "word_count": word_count(match.group("body"))}
+        for match in TEMPLATE_SECTION_PATTERN.finditer(current)
+    ]
+    selected = forced_types or generated_types(current)
+    if not selected:
+        selected = detect_types(project, load_manifest(template_repo))
+    local_words = word_count(existing_local_section(output))
+    total_words = word_count(current)
+    return {
+        "project": str(project),
+        "output": str(output),
+        "status": "over-budget" if total_words > threshold else "within-budget",
+        "word_count": total_words,
+        "warning_words": threshold,
+        "local_rules_word_count": local_words,
+        "template_types": selected,
+        "template_sections": template_sections,
     }
 
 
@@ -376,6 +452,8 @@ def main() -> int:
     parser.add_argument("--set", dest="sets", action="append", default=[])
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--budget-report", action="store_true")
+    parser.add_argument("--budget-warning-words", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -392,9 +470,36 @@ def main() -> int:
             print(f"{payload['status']} {payload['output']}")
         return 0 if payload["status"] == "current" else 1
 
-    content = render(project, template_repo, forced, args.sets, args.agent, output_name)
+    if args.budget_report:
+        payload = budget_report(
+            project,
+            template_repo,
+            forced,
+            args.agent,
+            output_name,
+            args.budget_warning_words,
+        )
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(
+                f"{payload['status']} {payload['output']}: {payload['word_count']} words "
+                f"(warning at {payload['warning_words']})"
+            )
+        return 0
 
     output = project / output_name
+    selected = forced
+    recovered: list[str] = []
+    if output.exists():
+        current = output.read_text(encoding="utf-8", errors="ignore")
+        if GENERATED_MARKER in current:
+            if not selected:
+                selected = generated_types(current)
+            recovered = recover_render_pairs(project, template_repo, selected, args.agent, output_name, current)
+
+    content = render(project, template_repo, selected, [*recovered, *args.sets], args.agent, output_name)
+
     if args.apply:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(content, encoding="utf-8")

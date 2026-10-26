@@ -11,6 +11,21 @@
 - Do not hand-edit generated or vendored dependency directories. Update the
   source templates, lock files, or dependency metadata that produce them.
 
+## Role Selection
+
+- Before creating an independent local role, search Ansible Galaxy for
+  maintained candidates and assess maintenance, versioning, platform support,
+  interface, and fit with the project's requirements.
+- Use a version-pinned Galaxy role directly when it satisfies the requirements
+  completely.
+- When a candidate could fit with a wrapper, narrowly scoped project tasks, a
+  companion role, an upstream contribution, or a maintained fork, present the
+  alternatives, missing capabilities, and trade-offs, then ask the user to
+  choose before implementation.
+- Create a local role only when no Galaxy candidate is suitable, or after the
+  user selects that option. Document the assessment and rejection reason in the
+  owning project.
+
 ## Structure
 
 - Put shared conditions on `import_tasks`, `include_tasks`, or `block` sections

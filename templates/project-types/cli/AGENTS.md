@@ -1,26 +1,14 @@
 # CLI Overlay
 
-## Command Design
+## Command Contract
 
-- Keep command names, flags, help text, and documentation consistent.
-- Preserve backward compatibility unless the user explicitly asks for a breaking
-  change.
-- Prefer explicit dry-run and apply modes for commands that mutate files or
-  external systems.
-- Preserve output contracts for scripts and automation. Human-friendly color,
-  links, or progress output should be disabled or guarded for non-TTY output.
+- Keep command names, flags, help, documentation, and backward compatibility
+  aligned. Mutating commands need explicit dry-run or apply behavior.
+- Preserve non-interactive output contracts. Validate help, an error path, and
+  one realistic success path when CLI behavior changes.
 
-## CLI Validation
+## Credentials and Fixtures
 
-- Test help output, error paths, and at least one realistic success path.
-- Update README examples and changelog entries when user-visible CLI behavior
-  changes.
-
-## Credential Handling
-
-- Keep CLI credentials in the platform credential store, tool-specific config
-  store, environment, or ignored local config files.
-- Never echo, log, snapshot, or commit token values returned by authentication
-  flows.
-- Keep test fixtures synthetic unless the repository documents a safe
-  anonymization process.
+- Keep credentials in an approved store or ignored local configuration. Never
+  print, log, snapshot, or commit authentication values.
+- Keep test fixtures synthetic unless a documented anonymization process exists.

@@ -204,6 +204,161 @@ project_types:
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(json.loads(result.stdout)["status"], "out-of-sync")
 
+    def test_budget_report_separates_template_and_local_instruction_content(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = self.write_project(directory)
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--apply",
+            )
+            agents = project / "AGENTS.md"
+            agents.write_text(
+                agents.read_text(encoding="utf-8").replace(
+                    "<!-- BEGIN PROJECT LOCAL -->\n\n<!-- END PROJECT LOCAL -->",
+                    "<!-- BEGIN PROJECT LOCAL -->\n"
+                    "- Preserve this intentionally local operational constraint.\n"
+                    "<!-- END PROJECT LOCAL -->",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--budget-report",
+                "--budget-warning-words",
+                "1",
+                "--json",
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "over-budget")
+            self.assertGreater(payload["word_count"], 1)
+            self.assertGreater(payload["local_rules_word_count"], 0)
+            self.assertEqual(
+                {section["template"] for section in payload["template_sections"]},
+                {"generic-development", "docs"},
+            )
+
+    def test_apply_preserves_existing_generated_template_types(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = self.write_project(directory)
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--apply",
+            )
+
+            optional = template_repo / "templates" / "project-types" / "optional"
+            optional.mkdir(parents=True)
+            (optional / "AGENTS.md").write_text("# Optional\n\n- Optional rule.\n", encoding="utf-8")
+            manifest = template_repo / "templates.yml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8")
+                + """
+  - id: optional
+    path: templates/project-types/optional/AGENTS.md
+    detect:
+      file_globs:
+        - trigger.txt
+""",
+                encoding="utf-8",
+            )
+            (project / "trigger.txt").write_text("trigger\n", encoding="utf-8")
+
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--apply",
+            )
+            text = (project / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertIn("<!-- BEGIN TEMPLATE: docs -->", text)
+            self.assertNotIn("<!-- BEGIN TEMPLATE: optional -->", text)
+
+    def test_apply_preserves_existing_render_time_values(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = self.write_project(directory)
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--set",
+                "PROJECT_DESCRIPTION=Preserved project description",
+                "--apply",
+            )
+
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--apply",
+            )
+            self.assertIn(
+                "- Description: Preserved project description",
+                (project / "AGENTS.md").read_text(encoding="utf-8"),
+            )
+
+    def test_apply_preserves_project_description_after_template_change(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            project = self.write_project(directory)
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--types",
+                "docs",
+                "--set",
+                "PROJECT_DESCRIPTION=Preserved project description",
+                "--apply",
+            )
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            template.write_text(template.read_text(encoding="utf-8") + "\n- Updated docs rule.\n", encoding="utf-8")
+
+            self.run_helper(
+                INIT_SCRIPT,
+                "--project",
+                str(project),
+                "--template-repo",
+                str(template_repo),
+                "--apply",
+            )
+            self.assertIn(
+                "- Description: Preserved project description",
+                (project / "AGENTS.md").read_text(encoding="utf-8"),
+            )
+
     def test_apply_learning_draft_requires_approved_clean_draft(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
@@ -312,6 +467,7 @@ Run markdownlint before completing Markdown documentation changes.
             )
             report = json.loads((template_repo / ".work" / "out-of-sync" / "projects.json").read_text(encoding="utf-8"))
             self.assertEqual(report[0]["status"], "out-of-sync")
+            self.assertIn("instruction_budget", report[0])
 
     def test_out_of_sync_report_includes_agent_specific_outputs(self) -> None:
         cases = {
