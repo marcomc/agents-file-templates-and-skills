@@ -18,6 +18,7 @@ while keeping each project explicit enough for an agent to act reliably.
 - [Refresh Coverage](#refresh-coverage)
 - [Failure Controls](#failure-controls)
 - [Generation Policy](#generation-policy)
+- [Instruction Routing And Budget](#instruction-routing-and-budget)
 
 ## Model
 
@@ -91,6 +92,7 @@ boundaries.
 | `docs` | README, runbooks, public examples | `docs-release` |
 | `github-release` | Release metadata and changelog flow | `docs-release` |
 | `web` | Browser, UI, client behavior | `frontend` |
+| `apple-app` | Xcode app workflow and acceptance across Apple platforms | Platform splits only after recurring differences |
 | `macos` | macOS app and local desktop workflows | none |
 | `raspberry-pi` | Pi operations and device workflows | `hardware-device` |
 | `home-assistant` | Home Assistant automation and staging | none |
@@ -266,3 +268,13 @@ Generated project files should be explicit and refreshable:
 - do not copy private project values into curated templates;
 - validate Markdown and run the privacy scanner after curated template edits;
 - scan `.work/learning-upstream/` drafts before approval.
+
+## Instruction Routing And Budget
+
+Use [instruction routing and budget](instruction-routing.md) when creating,
+splitting, or promoting a rule. It defines the boundary between global policy,
+root and nested instruction files, skills, and detailed documentation.
+
+The generator exposes a read-only budget report for the complete generated
+instruction file. A warning triggers review; it does not justify moving
+required safety, authorization, or validation controls into optional material.

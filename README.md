@@ -11,6 +11,8 @@ improving project-specific agent instructions.
 - [Configuration](#configuration)
 - [Skills](#skills)
 - [Composable Instructions](#composable-instructions)
+- [Apple Application Profile](#apple-application-profile)
+- [Instruction Routing And Budget](#instruction-routing-and-budget)
 - [Auto-Learning Pipeline](#auto-learning-pipeline)
 - [Installation Script](#installation-script)
 - [Vendor Conventions](#vendor-conventions)
@@ -62,6 +64,7 @@ such as `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md`.
     │   └── AGENTS.md
     └── project-types/
         ├── ansible/
+        ├── apple-app/
         ├── bash/
         ├── cli/
         ├── docker/
@@ -189,6 +192,45 @@ This model treats the global policy as a director file, project-type overlays as
 composable atoms, and project `AGENTS.md` files as generated compositions with a
 preserved local section.
 
+## Apple Application Profile
+
+Use `apple-app` for Xcode applications sharing code across macOS, iOS, and
+iPadOS. It provides one common build, test-evidence, UI-acceptance, data-safety,
+and distribution contract, with conditional platform-specific checks.
+`macos` remains a complementary overlay for desktop workflows and automation.
+
+Detection uses Xcode project/workspace contents or Apple UI/capability resources,
+including nested app projects. `Package.swift` and Swift source alone do not
+establish an Apple application: they can belong to packages targeting other
+platforms. For package-only or not-yet-generated apps, select the profile
+explicitly with any other applicable types:
+
+```bash
+python3 skills/init-agents-file/scripts/init_agents_file.py \
+  --project <PROJECT_PATH> --template-repo . --types apple-app
+```
+
+This previews the generated instructions. Add `--apply` only when refreshing
+the selected project's instruction file is part of the requested work. Adding
+or updating this profile does not rewrite existing project instructions.
+
+Reusable workflow lessons belong in the relevant skills; Apple-specific
+acceptance rules belong in this overlay, and SDK/product details stay in the
+project's local section. Keep one common profile until recurring differences
+justify separate platform overlays.
+
+## Instruction Routing And Budget
+
+Use [the routing and budget policy](docs/instruction-routing.md) to decide
+whether new guidance belongs in the global policy, a root or nested instruction
+file, a skill, or a task-specific document. The generator can report the word
+budget of a rendered instruction file without changing it:
+
+```bash
+python3 skills/init-agents-file/scripts/init_agents_file.py \
+  --project <PROJECT_PATH> --template-repo . --budget-report --json
+```
+
 ## Auto-Learning Pipeline
 
 This repository is the template side of the two-repository auto-learning
@@ -282,6 +324,7 @@ Validate changes before committing:
 markdownlint --config ~/.markdownlint.json README.md TODO.md docs/*.md templates/**/*.md skills/**/*.md
 python3 scripts/privacy_scan.py .
 python3 skills/init-agents-file/scripts/init_agents_file.py --project .
+python3 skills/init-agents-file/scripts/init_agents_file.py --project . --budget-report --json
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --scan-root . --max-depth 2
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --learning-upstream-summary
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py --template-repo . --scan-root . --out-of-sync-report

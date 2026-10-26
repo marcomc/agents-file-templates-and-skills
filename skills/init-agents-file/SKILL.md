@@ -20,6 +20,9 @@ project, template repository, output filename, and apply mode.
 4. Run a dry run first.
 5. Review generated content for relevance and privacy.
 6. Apply only when the user asked to create or update the project file.
+7. Use the budget report when the rendered root file is large; route conditional
+   detail to a task-relevant document or skill without moving mandatory safety
+   and validation boundaries out of directly loaded instructions.
 
 The script preserves content between:
 
@@ -51,6 +54,15 @@ Check whether a generated project instruction file is current:
 python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
   --project . \
   --check \
+  --json
+```
+
+Review the generated instruction budget without modifying the project:
+
+```bash
+python3 /path/to/agents-file-templates-and-skills/skills/init-agents-file/scripts/init_agents_file.py \
+  --project . \
+  --budget-report \
   --json
 ```
 

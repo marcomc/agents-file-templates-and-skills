@@ -543,24 +543,34 @@ def write_out_of_sync_report(
         project = project_root_for_instruction(instruction_path)
         output_name = instruction_path.relative_to(project).as_posix()
         agent = instruction_agent(instruction_path, text, init_helper.AGENT_GLOBAL_PATHS)
-        records.append(
-            init_helper.check_output(
-                project,
-                template_repo,
-                [],
-                [],
-                agent,
-                output_name,
-            )
+        record = init_helper.check_output(
+            project,
+            template_repo,
+            [],
+            [],
+            agent,
+            output_name,
         )
+        record["instruction_budget"] = init_helper.budget_report(
+            project,
+            template_repo,
+            [],
+            agent,
+            output_name,
+        )
+        records.append(record)
 
     report_dir = template_repo / OUT_OF_SYNC_DIR
     report_dir.mkdir(parents=True, exist_ok=True)
     (report_dir / "projects.json").write_text(json.dumps(records, indent=2), encoding="utf-8")
 
     counts: dict[str, int] = defaultdict(int)
+    budget_counts: dict[str, int] = defaultdict(int)
     for record in records:
         counts[str(record["status"])] += 1
+        budget = record.get("instruction_budget", {})
+        if isinstance(budget, dict):
+            budget_counts[str(budget.get("status", "unknown"))] += 1
 
     summary = [
         "# Out Of Sync Summary",
@@ -575,10 +585,17 @@ def write_out_of_sync_report(
         summary.extend(f"- `{status}`: {count}" for status, count in sorted(counts.items()))
     else:
         summary.append("- `none`: 0")
+    summary.extend(["", "## Instruction Budget", ""])
+    if budget_counts:
+        summary.extend(f"- `{status}`: {count}" for status, count in sorted(budget_counts.items()))
+    else:
+        summary.append("- `none`: 0")
     summary.extend(["", "## Projects", ""])
     for record in records:
         types = ", ".join(f"`{item}`" for item in record.get("template_types", [])) or "`none`"
-        summary.append(f"- `{record['status']}` {record['output']} ({types})")
+        budget = record.get("instruction_budget", {})
+        budget_status = budget.get("status", "unknown") if isinstance(budget, dict) else "unknown"
+        summary.append(f"- `{record['status']}` `{budget_status}` {record['output']} ({types})")
     if not records:
         summary.append("- No generated project files found.")
     summary.append("")

@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../AI_tools/skills"
+		},
+		{
+			"path": "../AI_tools/skills-installer"
+		}
+	],
+	"settings": {}
+}

@@ -34,6 +34,9 @@ merge:
     begin: "<!-- BEGIN PROJECT LOCAL -->"
     end: "<!-- END PROJECT LOCAL -->"
 
+instruction_budget:
+  root_warning_words: 1200
+
 global_template:
   id: global
   path: templates/global/AGENTS.md
@@ -101,14 +104,24 @@ project_types:
         - package.json
         - bin/*
         - src/**/__main__.py
+  - id: apple-app
+    path: templates/project-types/apple-app/AGENTS.md
+    detect:
+      file_globs:
+        - "*.xcodeproj/project.pbxproj"
+        - "*.xcworkspace/contents.xcworkspacedata"
+        - "*.storyboard"
+        - "*.xib"
+        - "*.entitlements"
   - id: macos
     path: templates/project-types/macos/AGENTS.md
     detect:
       file_globs:
-        - "*.xcodeproj"
-        - Package.swift
-        - "**/*.swift"
         - "*.scpt"
+      content_markers:
+        - macos app
+        - appkit
+        - mac catalyst
   - id: docs
     path: templates/project-types/docs/AGENTS.md
     detect:

@@ -1,7 +1,7 @@
 # AGENTS.md Instructions
 
 <!-- generated-by: agents-file-templates-and-skills/init-agents-file -->
-<!-- generated-date: 2026-06-10 -->
+<!-- generated-date: 2026-09-16 -->
 
 Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 
@@ -15,88 +15,44 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 <!-- BEGIN TEMPLATE: generic-development -->
 ### Generic Development
 
-## Project Orientation
+## Project Work
 
-- Start by reading the nearest `README.md`, package metadata, and existing task
-  or changelog files before editing.
-- Prefer existing project commands, wrappers, and documented workflows over
-  inventing new entrypoints.
-- Keep changes scoped to the user request and the affected module boundaries.
+- Read the nearest `README.md`, package metadata, and relevant task or release
+  notes before editing. Use the project's documented commands and wrappers.
+- Keep changes within the requested module boundary; preserve unrelated work and
+  edit sources rather than generated outputs.
+- Verify changed behavior with the narrowest relevant checks, treat lint output
+  as actionable, and report checks that could not run.
+- Update the affected operational documentation when behavior changes. Keep one
+  canonical document per topic instead of duplicating detailed guidance.
+- Do not create commits, tags, pushes, pull requests, or releases unless asked.
 
-## Change Discipline
+## Public-Safe Content
 
-- Do not revert unrelated local changes.
-- Preserve generated-file boundaries and edit source templates instead of
-  generated outputs.
-- Add or update tests when behavior changes.
-- Report validation that was run and any checks that could not be run.
-- Treat lint output as actionable unless it is clearly unrelated pre-existing
-  noise; call out any pre-existing noise separately.
-- Do not create commits, tags, pushes, pull requests, or releases unless the
-  user explicitly asks for that action.
-
-## Documentation
-
-- Keep project-facing documentation concise and operational.
-- Update setup, usage, or runbook instructions in the same change when behavior
-  changes.
-- Keep contributor, maintainer, and operational notes in agent-facing documents
-  when they are not needed by normal users.
-- Prefer one canonical document per topic and link to it instead of duplicating
-  long explanations across files.
-
-## Public-Safe Project Content
-
-- Keep project content portable and public-safe unless the repository explicitly
-  declares itself private operational documentation.
-- Before finishing, check changed source, docs, configs, tests, fixtures, and
-  generated artifacts for personal data, local paths, private network details,
-  live credentials, and copied sensitive command output.
-- Use stable placeholders in examples, such as `<HOSTNAME>`,
-  `<LOCAL_USERNAME>`, `<HOME_DIR>`, `<PATH_TO_PROJECT>`, and `<SECRET_NAME>`.
+- Keep tracked content portable. Replace personal, network, credential, and
+  environment-specific values with stable placeholders.
 
 <!-- END TEMPLATE: generic-development -->
 
 <!-- BEGIN TEMPLATE: python -->
 ### Python
 
-## Python Workflow
+## Python Work
 
-- Prefer the project-managed environment and commands from `pyproject.toml`,
-  lockfiles, task runners, or the README.
-- Keep package metadata, console scripts, and import paths consistent.
-- Use standard-library functionality where it is adequate.
-- Keep installed CLI behavior and direct module behavior consistent when both
-  entrypoints are advertised.
-- Preserve text output contracts for piped output; terminal color, links, or
-  progress UI must be guarded by TTY detection.
+- Use the project-managed environment and its approved format, lint, type, and
+  test commands. Keep packaging metadata, imports, and advertised entrypoints
+  consistent.
+- Prefer the standard library when adequate. Preserve non-interactive output
+  contracts; guard color, links, and progress UI with TTY detection.
+- For public CLI or release changes, update help, examples, release metadata,
+  and every applicable version source.
 
-## Testing and Quality
+## Data and Mutation Safety
 
-- Run the narrowest relevant tests first, then broader checks when shared
-  behavior changes.
-- Run formatting, linting, and type checks only through project-approved tools.
-- Avoid adding runtime dependencies for simple scripting problems unless the
-  dependency already exists or the tradeoff is documented.
-- Use the repository's aggregate validation command when available. Otherwise
-  run applicable lint, format, type, import, and test checks for the changed
-  package layout.
-
-## Packaging
-
-- When changing public CLI behavior, update help text, README examples, and
-  changelog or release notes if the project uses them.
-- When cutting a release, update every version source of truth used by the
-  project and verify version-reporting smoke checks.
-
-## Data Tool Safety
-
-- Treat generated data, active input files, exports, reports, and local caches
-  as potentially sensitive unless the repository explicitly says otherwise.
-- Keep private operational inputs ignored. Commit structural templates with
-  placeholder data instead.
-- For tools that mutate files or external systems, prefer dry-run or preview
-  modes and require explicit apply intent.
+- Treat input data, exports, reports, and caches as sensitive unless documented
+  otherwise. Keep live inputs ignored and commit only structural placeholders.
+- Use dry-run or preview modes for file or external-system mutation unless the
+  user explicitly requests apply.
 
 <!-- END TEMPLATE: python -->
 
@@ -128,62 +84,33 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 <!-- BEGIN TEMPLATE: docs -->
 ### Docs
 
-## Documentation Style
+## Documentation Changes
 
-- Write operational documentation for the next maintainer.
-- Keep instructions concise, current, and command-backed.
-- Prefer examples that can be copied and adapted safely.
-- Keep documentation discoverable through the relevant README, index, or
-  navigation file.
-
-## Maintenance
-
-- Update the table of contents when materially changing a README.
-- Remove stale setup or release guidance when a workflow changes.
-- Keep generated documentation clearly marked.
-- Update configuration documentation when adding, renaming, removing, or
-  changing config keys, environment variables, CLI flags, or defaults.
-- Update troubleshooting or runbook documentation when behavior changes in a way
-  users or operators could encounter.
-
-## Documentation Sanitization
-
-- Use project-relative paths and placeholders in public documentation.
-- Do not include personal home paths, real usernames, private domains, internal
-  hostnames, private IP addresses, device names, service account identifiers, or
-  real customer or team data.
-- If documentation needs a concrete local value, show how to discover it and
-  assign it to a shell variable instead of hard-coding one user's value.
+- Write concise, command-backed operational guidance and make it discoverable
+  from the README, index, or relevant runbook.
+- Update configuration, troubleshooting, setup, or release guidance when the
+  corresponding behavior changes. Keep generated content marked and refresh a
+  README table of contents after a material structural change.
+- Use project-relative paths and public-safe placeholders. Show how to discover
+  a local value instead of hard-coding personal or private infrastructure data.
 
 <!-- END TEMPLATE: docs -->
 
 <!-- BEGIN TEMPLATE: cli -->
 ### Cli
 
-## Command Design
+## Command Contract
 
-- Keep command names, flags, help text, and documentation consistent.
-- Preserve backward compatibility unless the user explicitly asks for a breaking
-  change.
-- Prefer explicit dry-run and apply modes for commands that mutate files or
-  external systems.
-- Preserve output contracts for scripts and automation. Human-friendly color,
-  links, or progress output should be disabled or guarded for non-TTY output.
+- Keep command names, flags, help, documentation, and backward compatibility
+  aligned. Mutating commands need explicit dry-run or apply behavior.
+- Preserve non-interactive output contracts. Validate help, an error path, and
+  one realistic success path when CLI behavior changes.
 
-## CLI Validation
+## Credentials and Fixtures
 
-- Test help output, error paths, and at least one realistic success path.
-- Update README examples and changelog entries when user-visible CLI behavior
-  changes.
-
-## Credential Handling
-
-- Keep CLI credentials in the platform credential store, tool-specific config
-  store, environment, or ignored local config files.
-- Never echo, log, snapshot, or commit token values returned by authentication
-  flows.
-- Keep test fixtures synthetic unless the repository documents a safe
-  anonymization process.
+- Keep credentials in an approved store or ignored local configuration. Never
+  print, log, snapshot, or commit authentication values.
+- Keep test fixtures synthetic unless a documented anonymization process exists.
 
 <!-- END TEMPLATE: cli -->
 
@@ -223,9 +150,29 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
   any new supported agent destination or instruction-file convention.
 - Installer tests must set or clear `AGENTS_TEMPLATE_REPO` explicitly so ambient
   local configuration cannot bypass fixture repositories.
+- Match platform detection to the file-only inventory: use actual root/nested
+  Xcode project or workspace contents and Apple resources. Keep portable Swift
+  packages as a negative case; Swift source alone is not an Apple platform.
+  Re-run detection after generation to catch boilerplate-induced false matches.
+- Keep installer path fanout data newline-delimited or equivalently structured;
+  never depend on shell word splitting for destination paths. Cover paths with
+  spaces in installer fixtures and smoke tests.
+- When uninstall or fanout logic touches the shared canonical payload, preserve
+  ownership markers and cover unknown-target, partial-uninstall, and dry-run
+  parity in regression tests.
 - Keep `SKILL.md` concise and move deterministic behavior into bundled scripts.
 - Keep skill examples configurable. Do not assume every user keeps projects
   under `${HOME}/Development`.
+
+## Instruction Routing
+
+- Use `docs/instruction-routing.md` to route new guidance between global,
+  root, nested, skill, and documentation layers.
+- Keep mandatory privacy, authority, mutation, and validation controls directly
+  loaded or explicitly invoked; do not hide them in optional references.
+- Treat the instruction budget as a review signal. Move only conditional,
+  repeatable detail after confirming the target agent can discover the new
+  documentation or skill at the relevant task boundary.
 
 ## Repository Validation
 
