@@ -25,7 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Preserve configured placeholder values when refreshing generated instructions.
+- Preserve configured placeholder values, including default, empty and multiline
+  descriptions, when refreshing generated instructions. Update directory-derived
+  project names after renames while retaining explicit name overrides.
 - Report the missing companion skill before writing an out-of-sync report.
 
 ## [1.3.0] - 2026-10-26
