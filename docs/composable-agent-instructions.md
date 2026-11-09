@@ -192,15 +192,20 @@ Curated templates are changed only by explicit apply:
 ```bash
 python3 skills/update-agents-file-templates/scripts/update_agents_templates.py \
   --template-repo . \
-  --apply-learning-draft ".work/learning-upstream/<lesson_family>.md"
+  --apply-learning-draft ".work/learning-upstream/<lesson_family>.md" \
+  --edit-plan ".work/<reviewed-edit-plan>.json"
 ```
 
 The command above is a dry run. To write the targeted curated template, the
 draft must have `Review status: approved` and `Privacy verdict: clean`, then run
 the same command with `--apply`.
 
-Approved draft rules are appended under `## Learned Rules` in the selected
-curated atom/template. Existing matching bullets are not duplicated.
+Novel approved rules require a reviewed whole-template replacement and an
+`--edit-plan` binding its preimage and replacement hashes. The editor may refine,
+merge, replace, relocate or add after reviewing the complete affected contract.
+Already-covered rules need no edit. Follow the installed consolidation skill's
+`references/coherence.md` and attach current council/peer/local evidence before
+recording integration. Existing matching rules are not duplicated.
 
 ## Automation Integration
 
@@ -211,13 +216,13 @@ This repository owns the weekly template-side job:
 
 | Automation | Cwd | Source Prompt |
 | --- | --- | --- |
-| `agent-template-weekly-upstream-apply` | `agents-file-templates-and-skills` | `agent-learning-system/automations/template-weekly-upstream-apply.md` |
+| `agent-template-weekly-upstream-apply` | `agents-file-templates-and-skills` | `automations/template-weekly-upstream-apply.md` |
 
 The job is valid only if it keeps this order:
 
 ```text
-summary -> inspect drafts -> dry run approved clean drafts -> apply ->
-validate -> out-of-sync report
+summary -> whole-contract review -> reviewed edit plan -> preview -> apply ->
+validate -> refresh consumers -> coherence/distribution receipt -> current audit
 ```
 
 It must skip draft, blocked, needs-scrub, duplicate-looking, private, or

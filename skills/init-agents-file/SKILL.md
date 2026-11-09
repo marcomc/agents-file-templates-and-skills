@@ -3,6 +3,9 @@ name: init-agents-file
 description: Use when initializing or refreshing project AI-agent instruction files from reusable global and project-type templates
 ---
 
+<!-- MARCOMC-SKILL: owner="MarcoMC <marco@marcomc.com>"; repository="marcomc/skills"; provenance="original" --> <!-- privacy_scan: allow -->
+<!-- Public author attribution required by the shared skills collection. -->
+
 # Init Agents File
 
 Use this skill to create or refresh a project AI-agent instruction file from an
@@ -11,6 +14,10 @@ Use this skill to create or refresh a project AI-agent instruction file from an
 This skill is meant to be invoked through the active coding agent. The bundled
 Python script is the deterministic helper to run after deciding the target
 project, template repository, output filename, and apply mode.
+
+The Python interpreter running the helper must have PyYAML installed. The
+template repository supplies `templates.yml` and the template files; these are
+external prerequisites, not bundled skill resources.
 
 ## Workflow
 
@@ -30,6 +37,15 @@ The script preserves content between:
 <!-- BEGIN PROJECT LOCAL -->
 <!-- END PROJECT LOCAL -->
 ```
+
+When `--apply` targets an existing file without the generated marker, it stops
+without changing the file. Review or move that file before applying generated
+instructions. On a managed refresh, if template changes prevent recovery of
+placeholder values, `--apply` stops without changing the file until you supply
+each missing value with `--set KEY=VALUE`. Directly recorded project name,
+project description, and global policy path values are recovered separately.
+Changes with no unrecovered placeholders can still be applied. Dry-run output
+remains available for comparison and warns when explicit values are needed.
 
 ## Commands
 

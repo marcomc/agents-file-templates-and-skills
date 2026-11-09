@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import subprocess
 import sys
@@ -359,15 +360,12 @@ project_types:
                 (project / "AGENTS.md").read_text(encoding="utf-8"),
             )
 
-    def test_apply_learning_draft_requires_approved_clean_draft(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            directory = Path(raw)
-            template_repo = self.write_template_repo(directory)
-            draft_dir = template_repo / ".work" / "learning-upstream"
-            draft_dir.mkdir(parents=True)
-            draft = draft_dir / "markdown-validation.md"
-            draft.write_text(
-                """# Learning Upstream Draft: markdown-validation
+    def write_learning_draft(self, template_repo: Path, candidate_rule: str) -> Path:
+        draft_dir = template_repo / ".work" / "learning-upstream"
+        draft_dir.mkdir(parents=True, exist_ok=True)
+        draft = draft_dir / "markdown-validation.md"
+        draft.write_text(
+            f"""# Learning Upstream Draft: markdown-validation
 
 ## Handoff
 
@@ -379,16 +377,109 @@ project_types:
 
 ## Candidate Rule
 
-Run markdownlint before completing Markdown documentation changes.
+{candidate_rule}
 
 ## Prevention Targets
 
 - `atom:docs`
 """,
+            encoding="utf-8",
+        )
+        return draft
+
+    def write_edit_plan(
+        self, directory: Path, template_text: str, replacement: str, draft: Path, candidate_rule: str
+    ) -> Path:
+        replacement_file = directory / "replacement.md"
+        replacement_file.write_text(replacement, encoding="utf-8")
+        plan = directory / "edit-plan.json"
+        plan.write_text(
+            json.dumps(
+                {
+                    "before_sha256": hashlib.sha256(template_text.encode()).hexdigest(),
+                    "replacement_file": replacement_file.name,
+                    "replacement_sha256": hashlib.sha256(replacement.encode()).hexdigest(),
+                    "operation": "refine",
+                    "integrated_rule": "Run markdownlint and tests before completing Markdown documentation changes.",
+                    "review_rationale": "Consolidates the existing validation guidance into one concise rule.",
+                    "draft_sha256": hashlib.sha256(draft.read_bytes()).hexdigest(),
+                    "candidate_rule": candidate_rule,
+                    "coverage_rationale": "The candidate's required documentation check is generalized into the integrated rule.",
+                }
+            ),
+            encoding="utf-8",
+        )
+        return plan
+
+    def test_apply_learning_draft_requires_reviewed_replacement_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            draft = self.write_learning_draft(
+                template_repo, "Run markdownlint before completing Markdown documentation changes."
+            )
+            candidate_rule = "Run markdownlint before completing Markdown documentation changes."
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            before = template.read_text(encoding="utf-8")
+
+            missing_plan = self.run_helper(
+                UPDATE_SCRIPT,
+                "--template-repo",
+                str(template_repo),
+                "--apply-learning-draft",
+                str(draft),
+                "--json",
+                check=False,
+            )
+            self.assertNotEqual(missing_plan.returncode, 0)
+            self.assertIn("requires --edit-plan", missing_plan.stderr)
+            self.assertEqual(template.read_text(encoding="utf-8"), before)
+
+            plan = self.write_edit_plan(
+                directory,
+                before,
+                "# Docs\n\n- Run markdownlint and tests before completing Markdown documentation changes.\n",
+                draft,
+                candidate_rule,
+            )
+            dry_run = self.run_helper(
+                UPDATE_SCRIPT,
+                "--template-repo",
+                str(template_repo),
+                "--apply-learning-draft",
+                str(draft),
+                "--edit-plan",
+                str(plan),
+                "--json",
+            )
+            self.assertEqual(json.loads(dry_run.stdout)["action"], "would-updated")
+            dry_result = json.loads(dry_run.stdout)
+            self.assertEqual(dry_result["candidate_rule"], candidate_rule)
+            self.assertIn("candidate's required documentation check", dry_result["coverage_rationale"])
+            self.assertEqual(template.read_text(encoding="utf-8"), before)
+
+            self.run_helper(
+                UPDATE_SCRIPT,
+                "--template-repo",
+                str(template_repo),
+                "--apply-learning-draft",
+                str(draft),
+                "--edit-plan",
+                str(plan),
+                "--apply",
+            )
+            written = template.read_text(encoding="utf-8")
+            self.assertEqual(written, "# Docs\n\n- Run markdownlint and tests before completing Markdown documentation changes.\n")
+            self.assertNotIn("Keep documentation operational.", written)
+
+            # Coverage is detected across multiline markdown, so no review plan is
+            # required when existing prose already states the learning.
+            template.write_text(
+                "# Docs\n\nRun markdownlint before completing\nMarkdown documentation changes.\n",
                 encoding="utf-8",
             )
-
-            dry_run = self.run_helper(
+            draft.write_text(draft.read_text(encoding="utf-8").replace("markdownlint", "markdownlint"), encoding="utf-8")
+            already_present = self.run_helper(
                 UPDATE_SCRIPT,
                 "--template-repo",
                 str(template_repo),
@@ -396,33 +487,7 @@ Run markdownlint before completing Markdown documentation changes.
                 str(draft),
                 "--json",
             )
-            self.assertEqual(json.loads(dry_run.stdout)["action"], "would-updated")
-
-            self.run_helper(
-                UPDATE_SCRIPT,
-                "--template-repo",
-                str(template_repo),
-                "--apply-learning-draft",
-                str(draft),
-                "--apply",
-            )
-            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
-            self.assertIn("## Learned Rules", template.read_text(encoding="utf-8"))
-
-            template.write_text("# Docs\n\n## Learned Rules\n- Existing rule.\n", encoding="utf-8")
-            draft.write_text(draft.read_text(encoding="utf-8").replace("markdownlint", "markdownlint and tests"), encoding="utf-8")
-            self.run_helper(
-                UPDATE_SCRIPT,
-                "--template-repo",
-                str(template_repo),
-                "--apply-learning-draft",
-                str(draft),
-                "--apply",
-            )
-            self.assertIn(
-                "- Run markdownlint and tests before completing Markdown documentation changes.",
-                template.read_text(encoding="utf-8"),
-            )
+            self.assertEqual(json.loads(already_present.stdout)["action"], "would-already-present")
 
             draft.write_text(draft.read_text(encoding="utf-8").replace("approved", "draft"), encoding="utf-8")
             before = template.read_text(encoding="utf-8")
@@ -438,6 +503,124 @@ Run markdownlint before completing Markdown documentation changes.
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("not approved", result.stderr)
             self.assertEqual(template.read_text(encoding="utf-8"), before)
+
+    def test_edit_plan_rejects_stale_hashes_and_private_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            draft = self.write_learning_draft(
+                template_repo, "Run markdownlint before completing Markdown documentation changes."
+            )
+            candidate_rule = "Run markdownlint before completing Markdown documentation changes."
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            original = template.read_text(encoding="utf-8")
+            clean_replacement = "# Docs\n\n- Run markdownlint and tests before completing Markdown documentation changes.\n"
+            plan = self.write_edit_plan(directory, original, clean_replacement, draft, candidate_rule)
+            template.write_text(original + "\nNew clause.\n", encoding="utf-8")
+            result = self.run_helper(
+                UPDATE_SCRIPT, "--template-repo", str(template_repo), "--apply-learning-draft", str(draft),
+                "--edit-plan", str(plan), "--apply", check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("before_sha256", result.stderr)
+
+            current = template.read_text(encoding="utf-8")
+            plan = self.write_edit_plan(directory, current, clean_replacement, draft, candidate_rule)
+            plan_data = json.loads(plan.read_text(encoding="utf-8"))
+            plan_data["replacement_sha256"] = "0" * 64
+            plan.write_text(json.dumps(plan_data), encoding="utf-8")
+            result = self.run_helper(
+                UPDATE_SCRIPT, "--template-repo", str(template_repo), "--apply-learning-draft", str(draft),
+                "--edit-plan", str(plan), "--apply", check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("replacement_sha256", result.stderr)
+
+            private_replacement = clean_replacement + "\n- Set api_" + "key=placeholder before deployment.\n"
+            plan = self.write_edit_plan(directory, current, private_replacement, draft, candidate_rule)
+            result = self.run_helper(
+                UPDATE_SCRIPT, "--template-repo", str(template_repo), "--apply-learning-draft", str(draft),
+                "--edit-plan", str(plan), "--apply", check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("private or secret-shaped", result.stderr)
+            self.assertEqual(template.read_text(encoding="utf-8"), current)
+
+    def test_rule_coverage_preserves_negation_scope_and_command_case(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            draft = self.write_learning_draft(template_repo, "Run tests before release.")
+            for existing in (
+                "# Docs\n\n- Do not run tests before release.\n",
+                "# Docs\n\n- Run tests before release when deploying to production.\n",
+                "# Docs\n\n- Run Tests before release.\n",
+            ):
+                with self.subTest(existing=existing):
+                    template.write_text(existing, encoding="utf-8")
+                    result = self.run_helper(
+                        UPDATE_SCRIPT,
+                        "--template-repo",
+                        str(template_repo),
+                        "--apply-learning-draft",
+                        str(draft),
+                        "--json",
+                        check=False,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("requires --edit-plan", result.stderr)
+                    self.assertEqual(template.read_text(encoding="utf-8"), existing)
+
+            template.write_text("# Docs\n\n- Run tests before\n  release.\n", encoding="utf-8")
+            result = self.run_helper(
+                UPDATE_SCRIPT,
+                "--template-repo",
+                str(template_repo),
+                "--apply-learning-draft",
+                str(draft),
+                "--json",
+            )
+            self.assertEqual(json.loads(result.stdout)["action"], "would-already-present")
+
+    def test_edit_plan_must_map_current_approved_draft(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            candidate = "Run markdownlint before completing Markdown documentation changes."
+            draft = self.write_learning_draft(template_repo, candidate)
+            template = template_repo / "templates" / "project-types" / "docs" / "AGENTS.md"
+            original = template.read_text(encoding="utf-8")
+            replacement = "# Docs\n\n- Run markdownlint and tests before completing Markdown documentation changes.\n"
+            plan = self.write_edit_plan(directory, original, replacement, draft, candidate)
+
+            cases = (
+                ("stale draft", lambda data: data.update(draft_sha256="0" * 64)),
+                ("wrong candidate", lambda data: data.update(candidate_rule="Skip markdownlint.")),
+                ("missing mapping", lambda data: data.update(coverage_rationale="")),
+            )
+            for label, mutate in cases:
+                with self.subTest(label=label):
+                    data = json.loads(plan.read_text(encoding="utf-8"))
+                    mutate(data)
+                    plan.write_text(json.dumps(data), encoding="utf-8")
+                    result = self.run_helper(
+                        UPDATE_SCRIPT, "--template-repo", str(template_repo), "--apply-learning-draft", str(draft),
+                        "--edit-plan", str(plan), "--apply", check=False,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(template.read_text(encoding="utf-8"), original)
+
+            data = json.loads(self.write_edit_plan(directory, original, replacement, draft, candidate).read_text())
+            data["integrated_rule"] = "Unrelated deployment rule."
+            plan.write_text(json.dumps(data), encoding="utf-8")
+            result = self.run_helper(
+                UPDATE_SCRIPT, "--template-repo", str(template_repo), "--apply-learning-draft", str(draft),
+                "--edit-plan", str(plan), "--apply", check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("not a complete rule block", result.stderr)
+            self.assertEqual(template.read_text(encoding="utf-8"), original)
 
     def test_out_of_sync_report_detects_changed_template(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

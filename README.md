@@ -247,6 +247,12 @@ The required weekly template automation runs in this repository and must:
 | Report | Write `.work/out-of-sync/` refresh reports |
 | Avoid | No stage, commit, push, pull request, or unrelated edits |
 
+Its Codex prompt source is
+[`automations/template-weekly-upstream-apply.md`](automations/template-weekly-upstream-apply.md).
+Configure the scheduled task in this repository's Codex project using that
+prompt. The Agent Learning installer provides setup guidance but does not
+create scheduled tasks.
+
 Use
 [`docs/composable-agent-instructions.md#automation-integration`](docs/composable-agent-instructions.md#automation-integration)
 for the template-side command contract.

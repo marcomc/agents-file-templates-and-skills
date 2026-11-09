@@ -1,7 +1,7 @@
 # AGENTS.md Instructions
 
 <!-- generated-by: agents-file-templates-and-skills/init-agents-file -->
-<!-- generated-date: 2026-09-16 -->
+<!-- generated-date: 2026-11-09 -->
 
 Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 
@@ -32,6 +32,10 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 - Keep tracked content portable. Replace personal, network, credential, and
   environment-specific values with stable placeholders.
 
+## Generic Development Learned Rules
+
+- Treat shipped example configs as real runtime inputs: keep them public-safe and exercise them through the actual install and parser paths, including fallback parsers when present.
+
 <!-- END TEMPLATE: generic-development -->
 
 <!-- BEGIN TEMPLATE: python -->
@@ -53,6 +57,11 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
   otherwise. Keep live inputs ignored and commit only structural placeholders.
 - Use dry-run or preview modes for file or external-system mutation unless the
   user explicitly requests apply.
+
+## Python Learned Rules
+
+- Frozen report objects must defensively copy and freeze nested collections; test source and exposed-value mutation cannot change published evidence.
+- At a row-level read boundary, record malformed conversion failures while re-raising schema failures that invalidate the whole read; test both paths.
 
 <!-- END TEMPLATE: python -->
 
@@ -166,6 +175,10 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 
 ## Instruction Routing
 
+- Before promoting learnings, read the installed consolidation skill's
+  `references/coherence.md`: revise the whole affected contract, preserve policy
+  precedence and coverage, and require proportionate review plus integration
+  proof. Reuse one coordinator and keep history outside active instructions.
 - Use `docs/instruction-routing.md` to route new guidance between global,
   root, nested, skill, and documentation layers.
 - Keep mandatory privacy, authority, mutation, and validation controls directly

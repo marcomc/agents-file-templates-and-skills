@@ -64,3 +64,7 @@ These rules apply to agent work rooted under `${USER_WORKSPACE_ROOT}`.
 - Keep live data files, generated exports, caches, local config files, and
   credential files out of version control. Add or update ignore rules when a
   workflow creates those files.
+
+## Learned Rules
+
+- When upgrading an Android emulator system image or hardware profile, retain the prior AVD under a rollback name. Expect an initial cold boot to create a compatible Quick Boot snapshot; check emulator logs for snapshot-load failures and verify the ADB API level before deleting the prior AVD.
