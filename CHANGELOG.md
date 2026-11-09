@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+## [1.4.0] - 2026-11-09
+
+### Added
+
+- Hash-bound edit plans for novel learning promotion, with explicit rule coverage,
+  whole-template replacement and independent coherence review before integration.
+- Reusable Android rollback, example-config validation, Python report-boundary
+  and artifact lifecycle guidance in the curated templates.
+- Repository-owned prompt for the weekly template-upstream automation.
+
+### Changed
+
+- Compact the promotion workflow while retaining edit-plan fields, privacy and
+  authority boundaries, and source, installation and consumer verification.
+- Reconcile accumulated automation edits and concurrent worktrees before release
+  preparation, verifying active consumers before cleaning original checkouts.
+
+### Fixed
+
+- Preserve configured placeholder values, including default, empty and multiline
+  descriptions, when refreshing generated instructions. Update directory-derived
+  project names after renames while retaining explicit name overrides and saved
+  legacy names whose provenance was not recorded. Prefer explicit and recorded
+  values over template inference, with safe refusal for unresolved conflicts and
+  per-consumer conflict details in read-only status reports.
+- Report the missing companion skill before writing an out-of-sync report.
+
 ## [1.3.0] - 2026-10-26
 
 ### Added

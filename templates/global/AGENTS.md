@@ -64,3 +64,25 @@ These rules apply to agent work rooted under `${USER_WORKSPACE_ROOT}`.
 - Keep live data files, generated exports, caches, local config files, and
   credential files out of version control. Add or update ignore rules when a
   workflow creates those files.
+
+## Learned Rules
+
+- When upgrading an Android emulator system image or hardware profile, retain the prior AVD under a rollback name. Expect an initial cold boot to create a compatible Quick Boot snapshot; check emulator logs for snapshot-load failures and verify the ADB API level before deleting the prior AVD.
+- Before installing, upgrading or copying tools, reuse the existing managed
+  installation and bind its home/store explicitly. Inventory configured and
+  running payloads, declared rollbacks, alternate homes, bootstrap caches and
+  manual restore copies; reconcile divergence before creating another install.
+- For generated outputs and preparation/test data, record the approved durable
+  destination, disposable temp/cache paths, owner and cleanup condition. Use
+  job-scoped directories and finally cleanup; keep required reports, operational
+  receipts and credentials outside disposable trees. Require any designated
+  external volume to be mounted rather than silently falling back elsewhere.
+- Before task closure, retire redundant task-owned copies and caches within the
+  granted cleanup authority, using owning lifecycle tools and fresh per-target
+  activity checks. Protect running/configured payloads, declared rollbacks,
+  databases and backups; verify required evidence archives before removal.
+  Record retained paths, their owner and disposal condition instead of silently
+  accumulating them. Package-local retention does not cover other stores.
+- For disk cleanup, report nominal allocation removed separately from observed
+  before/after free space. Shared extents and snapshots can retain blocks;
+  cache-cleanup authority does not authorize deleting restore points.

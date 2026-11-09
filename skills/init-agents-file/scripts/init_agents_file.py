@@ -28,9 +28,20 @@ TEMPLATE_SECTION_PATTERN = re.compile(
     re.DOTALL,
 )
 PLACEHOLDER_TOKEN_PATTERN = re.compile(r"\$\{(?P<key>[A-Za-z_][A-Za-z0-9_]*)\}")
-PROJECT_DESCRIPTION_PATTERN = re.compile(r"^- Description:\s*(?P<value>.+)$", re.MULTILINE)
+PROJECT_DESCRIPTION_PATTERN = re.compile(
+    r"^- Description: (?P<value>.*?)\n\n## Project-Type Overlays\n",
+    re.MULTILINE | re.DOTALL,
+)
+PROJECT_NAME_PATTERN = re.compile(r"^- Project: `(?P<value>.*?)`$", re.MULTILINE)
+GLOBAL_POLICY_PATH_PATTERN = re.compile(
+    r"^Follow `(?P<value>.*?)` for canonical user-wide policy\.$", re.MULTILINE
+)
 DERIVED_PLACEHOLDERS = {"GENERATED_DATE", "PROJECT_NAME"}
-RECOVERABLE_BASE_PLACEHOLDERS = {"PROJECT_DESCRIPTION"}
+RECOVERABLE_BASE_PLACEHOLDERS = {
+    "GLOBAL_AGENTS_PATH",
+    "PROJECT_DESCRIPTION",
+    "PROJECT_NAME",
+}
 DEFAULT_BUDGET_WARNING_WORDS = 1_200
 
 AGENT_OUTPUTS = {
@@ -150,7 +161,25 @@ def template_map(manifest: dict) -> dict[str, str]:
     return {item["id"]: item["path"] for item in manifest.get("project_types", [])}
 
 
-def render(project: Path, template_repo: Path, forced_types: list[str], pairs: list[str], agent: str, output_name: str) -> str:
+class RecoveryConflict(SystemExit):
+    """Expected ambiguous saved values; mutation must stop, status can report it."""
+
+
+def project_name_origin(current: str | None, pairs: list[str]) -> str:
+    if any(pair.split("=", 1)[0] == "PROJECT_NAME" for pair in pairs):
+        return "override"
+    if current is None:
+        return "derived"
+    header = current.partition("## Project Context")[0].splitlines()
+    derived = "<!-- project-name-derived -->" in header
+    override = "<!-- project-name-override -->" in header
+    if derived and override:
+        raise RecoveryConflict("Ambiguous project-name provenance. No file was changed; review the conflicting markers.")
+    # Legacy files did not record provenance, so retain their saved value.
+    return "derived" if derived else "override"
+
+
+def render(project: Path, template_repo: Path, forced_types: list[str], pairs: list[str], agent: str, output_name: str, name_origin: str | None = None) -> str:
     manifest = load_manifest(template_repo)
     detected = forced_types or detect_types(project, manifest)
     always = manifest.get("merge", {}).get("always_include", [])
@@ -177,6 +206,8 @@ def render(project: Path, template_repo: Path, forced_types: list[str], pairs: l
         "## Project-Type Overlays",
         "",
     ]
+    origin = name_origin or project_name_origin(None, pairs)
+    output.insert(3, f"<!-- project-name-{origin} -->")
 
     for type_id in ordered:
         rel_path = paths.get(type_id)
@@ -185,6 +216,7 @@ def render(project: Path, template_repo: Path, forced_types: list[str], pairs: l
         template_path = template_repo / rel_path
         body = strip_title(template_path.read_text(encoding="utf-8"))
         body = replace_placeholders(body, values)
+        body = re.sub(r"^## Learned Rules$", f"## {type_id.replace('-', ' ').title()} Learned Rules", body, flags=re.MULTILINE)
         output.extend(
             [
                 f"<!-- BEGIN TEMPLATE: {type_id} -->",
@@ -251,29 +283,60 @@ def recover_render_pairs(
     agent: str,
     output_name: str,
     current: str,
-) -> list[str]:
+    supplied_pairs: list[str] | None = None,
+) -> tuple[list[str], bool]:
+    supplied_pairs = supplied_pairs or []
+    supplied_keys = {pair.split("=", 1)[0] for pair in supplied_pairs if "=" in pair}
     recovered: dict[str, str] = {}
-    description_match = PROJECT_DESCRIPTION_PATTERN.search(current)
+    project_name_match = PROJECT_NAME_PATTERN.search(current)
+    project_name = project_name_match.group("value") if project_name_match else None
+    if project_name is not None:
+        recovered["PROJECT_NAME"] = (project.name if project_name_origin(current, supplied_pairs) == "derived"
+                                     else project_name)
+    description_match = (PROJECT_DESCRIPTION_PATTERN.search(current)
+                         if current.count("\n\n## Project-Type Overlays\n") == 1 else None)
     if description_match:
-        description = description_match.group("value").strip()
-        if description and description != "${PROJECT_DESCRIPTION}":
-            recovered["PROJECT_DESCRIPTION"] = description
+        description = description_match.group("value")
+        recovered["PROJECT_DESCRIPTION"] = description
+    global_path_match = GLOBAL_POLICY_PATH_PATTERN.search(current)
+    if global_path_match:
+        recovered["GLOBAL_AGENTS_PATH"] = global_path_match.group("value")
 
+    # Explicit input wins over saved header values, which win over template
+    # inference. Only values without either authority need inference/consistency.
+    authoritative_keys = supplied_keys | recovered.keys()
     keys = sorted(recoverable_placeholder_keys(template_repo, selected))
     sentinels = {key: f"__AGENTS_RENDER_PLACEHOLDER_{key}__" for key in keys}
     sentinel_pairs = [f"{key}={value}" for key, value in sentinels.items()]
-    rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name)
+    if project_name is not None:
+        sentinel_pairs.append(f"PROJECT_NAME={project_name}")
+    rendered = render(project, template_repo, selected, sentinel_pairs, agent, output_name,
+                      name_origin=project_name_origin(current, supplied_pairs))
     match = re.fullmatch(
         placeholder_pattern(normalize_generated(rendered), sentinels),
         normalize_generated(current),
         re.DOTALL,
     )
     if not match:
-        return [f"{key}={value}" for key, value in recovered.items()]
+        current_sections = {m.group("type"): m.group("body") for m in TEMPLATE_SECTION_PATTERN.finditer(current)}
+        for section in TEMPLATE_SECTION_PATTERN.finditer(rendered):
+            prior = current_sections.get(section.group("type"))
+            if prior is None:
+                continue
+            section_match = re.fullmatch(placeholder_pattern(section.group("body"), sentinels), prior, re.DOTALL)
+            if section_match:
+                for key, value in section_match.groupdict().items():
+                    name = key.removeprefix("placeholder_")
+                    if name in authoritative_keys:
+                        continue
+                    if name in recovered and recovered[name] != value:
+                        raise RecoveryConflict(f"Conflicting recovered placeholder {name}; supply an explicit value after review.")
+                    recovered[name] = value
+        return [f"{key}={value}" for key, value in recovered.items()], False
     for key in sentinels:
-        if sentinels[key] in rendered:
+        if key not in authoritative_keys and sentinels[key] in rendered:
             recovered[key] = match.group(f"placeholder_{key}")
-    return [f"{key}={value}" for key, value in recovered.items()]
+    return [f"{key}={value}" for key, value in recovered.items()], True
 
 
 def recoverable_placeholder_keys(template_repo: Path, selected: list[str]) -> set[str]:
@@ -292,6 +355,22 @@ def template_placeholder_keys(template_repo: Path, selected: list[str]) -> set[s
         text = (template_repo / rel_path).read_text(encoding="utf-8")
         keys.update(match.group("key") for match in PLACEHOLDER_TOKEN_PATTERN.finditer(text))
     return keys
+
+
+def unrecovered_placeholders(
+    template_repo: Path,
+    selected: list[str],
+    recovered_pairs: list[str],
+    supplied_pairs: list[str],
+) -> list[str]:
+    """Find reachable placeholder values that are neither recovered nor explicit."""
+    template_keys = {
+        *RECOVERABLE_BASE_PLACEHOLDERS,
+        *template_placeholder_keys(template_repo, selected),
+    } - (DERIVED_PLACEHOLDERS - RECOVERABLE_BASE_PLACEHOLDERS)
+    recovered = {pair.split("=", 1)[0] for pair in recovered_pairs if "=" in pair}
+    supplied = {pair.split("=", 1)[0] for pair in supplied_pairs if "=" in pair}
+    return sorted(template_keys - recovered - supplied)
 
 
 def check_output(
@@ -323,9 +402,26 @@ def check_output(
         }
 
     selected = forced_types or generated_types(current) or detected
-    recovered = recover_render_pairs(project, template_repo, selected, agent, output_name, current)
-    expected = render(project, template_repo, selected, [*recovered, *pairs], agent, output_name)
-    status = "current" if normalize_generated(current) == normalize_generated(expected) else "out-of-sync"
+    try:
+        recovered, recovery_complete = recover_render_pairs(
+            project, template_repo, selected, agent, output_name, current, pairs
+        )
+        expected = render(project, template_repo, selected, [*recovered, *pairs], agent, output_name,
+                          name_origin=project_name_origin(current, pairs))
+    except RecoveryConflict as exc:
+        return {
+            "project": str(project),
+            "output": str(output),
+            "status": "out-of-sync",
+            "template_types": selected,
+            "recovery_conflict": str(exc),
+        }
+    status = (
+        "current"
+        if (recovery_complete or not unrecovered_placeholders(template_repo, selected, recovered, pairs))
+        and normalize_generated(current) == normalize_generated(expected)
+        else "out-of-sync"
+    )
     return {
         "project": str(project),
         "output": str(output),
@@ -491,14 +587,45 @@ def main() -> int:
     output = project / output_name
     selected = forced
     recovered: list[str] = []
+    recovery_complete = True
+    current = ""
     if output.exists():
         current = output.read_text(encoding="utf-8", errors="ignore")
-        if GENERATED_MARKER in current:
+        if GENERATED_MARKER not in current:
+            if args.apply:
+                raise SystemExit(
+                    f"Refusing to overwrite existing unmarked instruction file: {output}. "
+                    "Review or move it, then rerun --apply."
+                )
+        else:
             if not selected:
                 selected = generated_types(current)
-            recovered = recover_render_pairs(project, template_repo, selected, args.agent, output_name, current)
+            recovered, recovery_complete = recover_render_pairs(
+                project, template_repo, selected, args.agent, output_name, current, args.sets
+            )
 
-    content = render(project, template_repo, selected, [*recovered, *args.sets], args.agent, output_name)
+    if output.exists() and GENERATED_MARKER in current and not recovery_complete:
+        unrecovered = unrecovered_placeholders(
+            template_repo,
+            selected,
+            recovered,
+            args.sets,
+        )
+        if args.apply and unrecovered:
+            raise SystemExit(
+                f"Cannot safely refresh {output}: the generated file no longer matches its current templates, "
+                f"and values for placeholders {', '.join(unrecovered)} are missing. No file was changed. "
+                "Review and supply each replacement with --set KEY=VALUE, then rerun --apply."
+            )
+        if not args.apply and unrecovered:
+            print(
+                f"Warning: prior values for placeholders {', '.join(unrecovered)} may not be recoverable "
+                f"for {output}; apply requires explicit --set values.",
+                file=sys.stderr,
+            )
+
+    content = render(project, template_repo, selected, [*recovered, *args.sets], args.agent, output_name,
+                     name_origin=project_name_origin(current if GENERATED_MARKER in current else None, args.sets))
 
     if args.apply:
         output.parent.mkdir(parents=True, exist_ok=True)

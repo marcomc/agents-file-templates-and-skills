@@ -16,3 +16,8 @@
   otherwise. Keep live inputs ignored and commit only structural placeholders.
 - Use dry-run or preview modes for file or external-system mutation unless the
   user explicitly requests apply.
+
+## Learned Rules
+
+- Frozen report objects must defensively copy and freeze nested collections; test source and exposed-value mutation cannot change published evidence.
+- At a row-level read boundary, record malformed conversion failures while re-raising schema failures that invalidate the whole read; test both paths.

@@ -16,3 +16,8 @@
 
 - Keep tracked content portable. Replace personal, network, credential, and
   environment-specific values with stable placeholders.
+
+## Learned Rules
+
+- Treat shipped example configs as real runtime inputs: keep them public-safe and exercise them through the actual install and parser paths, including fallback parsers when present.
+- For dependency installation, upgrades, restore copies, generated temp/cache work or cleanup, read `${GLOBAL_AGENTS_PATH}` and follow its artifact lifecycle policy; retain ownership, retention and cleanup evidence before task closure.
