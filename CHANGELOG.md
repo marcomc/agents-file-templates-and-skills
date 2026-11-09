@@ -29,7 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   descriptions, when refreshing generated instructions. Update directory-derived
   project names after renames while retaining explicit name overrides and saved
   legacy names whose provenance was not recorded. Prefer explicit and recorded
-  values over template inference, with safe refusal for unresolved conflicts.
+  values over template inference, with safe refusal for unresolved conflicts and
+  per-consumer conflict details in read-only status reports.
 - Report the missing companion skill before writing an out-of-sync report.
 
 ## [1.3.0] - 2026-10-26

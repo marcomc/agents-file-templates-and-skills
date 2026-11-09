@@ -652,6 +652,36 @@ project_types:
             self.assertEqual(report[0]["status"], "out-of-sync")
             self.assertIn("instruction_budget", report[0])
 
+    def test_out_of_sync_report_isolates_recovery_conflicts_and_preserves_consumers(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            template_repo = self.write_template_repo(directory)
+            ambiguous = self.write_project(directory)
+            generic = template_repo / "templates/project-types/generic-development/AGENTS.md"
+            docs = template_repo / "templates/project-types/docs/AGENTS.md"
+            generic.write_text("# Generic\n\nUse production.\n")
+            docs.write_text("# Docs\n\nUse staging.\n")
+            self.run_helper(INIT_SCRIPT, "--project", str(ambiguous), "--template-repo", str(template_repo),
+                            "--types", "docs", "--apply")
+            generic.write_text("# Generic\n\nUse ${TEST_COMMAND}.\n")
+            docs.write_text("# Docs\n\nUse ${TEST_COMMAND}.\n")
+            healthy = directory / "healthy"
+            healthy.mkdir()
+            self.run_helper(INIT_SCRIPT, "--project", str(healthy), "--template-repo", str(template_repo),
+                            "--types", "docs", "--set", "TEST_COMMAND=make test", "--apply")
+            original = {project: (project / "AGENTS.md").read_bytes() for project in [ambiguous, healthy]}
+            self.run_helper(UPDATE_SCRIPT, "--template-repo", str(template_repo), "--scan-root", str(directory),
+                            "--out-of-sync-report")
+            records = json.loads((template_repo / ".work/out-of-sync/projects.json").read_text())
+            report = {Path(record["project"]): record for record in records}
+            self.assertEqual(set(report), {ambiguous.resolve(), healthy.resolve()})
+            self.assertEqual(report[ambiguous.resolve()]["status"], "out-of-sync")
+            self.assertIn("TEST_COMMAND", report[ambiguous.resolve()]["recovery_conflict"])
+            self.assertEqual(report[healthy.resolve()]["status"], "current")
+            self.assertTrue((template_repo / ".work/out-of-sync/summary.md").is_file())
+            for project, before in original.items():
+                self.assertEqual((project / "AGENTS.md").read_bytes(), before)
+
     def test_out_of_sync_report_includes_agent_specific_outputs(self) -> None:
         cases = {
             "claude": "CLAUDE.md",
