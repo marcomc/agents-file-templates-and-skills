@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## [1.4.1] - 2026-11-09
+
+### Fixed
+
+- Link to the shared automation runbook without assuming a local checkout path.
+- Exclude local editor workspace files from version control.
+
 ## [1.4.0] - 2026-11-09
 
 ### Added

@@ -210,7 +210,7 @@ recording integration. Existing matching rules are not duplicated.
 ## Automation Integration
 
 The full two-repository automation install runbook lives in
-`${HOME}/Development/agent-learning-system/docs/auto-learning-pipeline-automations.md`.
+[Agent Learning System](https://github.com/marcomc/agent-learning-system/blob/main/docs/auto-learning-pipeline-automations.md).
 
 This repository owns the weekly template-side job:
 

@@ -235,7 +235,7 @@ python3 skills/init-agents-file/scripts/init_agents_file.py \
 
 This repository is the template side of the two-repository auto-learning
 pipeline. The orchestration runbook lives in
-`${HOME}/Development/agent-learning-system/docs/auto-learning-pipeline-automations.md`.
+[Agent Learning System](https://github.com/marcomc/agent-learning-system/blob/main/docs/auto-learning-pipeline-automations.md).
 
 The required weekly template automation runs in this repository and must:
 

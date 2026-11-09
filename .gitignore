@@ -4,3 +4,5 @@
 __pycache__/
 .DS_Store
 
+# Local editor workspace configuration
+*.code-workspace
