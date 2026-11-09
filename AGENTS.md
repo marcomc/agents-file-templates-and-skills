@@ -35,6 +35,7 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 ## Generic Development Learned Rules
 
 - Treat shipped example configs as real runtime inputs: keep them public-safe and exercise them through the actual install and parser paths, including fallback parsers when present.
+- For dependency installation, upgrades, restore copies, generated temp/cache work or cleanup, read `${HOME}/AGENTS.md` and follow its artifact lifecycle policy; retain ownership, retention and cleanup evidence before task closure.
 
 <!-- END TEMPLATE: generic-development -->
 
@@ -173,6 +174,26 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 - Keep skill examples configurable. Do not assume every user keeps projects
   under `${HOME}/Development`.
 
+## Release Backlog and Worktrees
+
+Automation and personalized instruction updates accumulate in the main checkout
+between releases. Treat existing staged, unstaged and untracked project work as
+release candidates; classify by provenance, dependencies and authorization, not
+by age or whether it originated in the current chat.
+
+- Inventory and snapshot file contents, hashes, branches, worktree owners and
+  active consumers before editing. Compare concurrent branches from their merge
+  base; an older baseline does not imply intentional deletions.
+- Reconcile the complete authorized backlog into one sibling release worktree.
+  Record every item's destination or exclusion reason; preserve untracked files,
+  unique commits and required evidence. Verify editor discovery before handoff.
+- Before source cleanup, recheck hashes and activity, prove reviewed coverage,
+  and verify that installed tools and automations no longer require the old
+  checkout contents. Preserve open-PR or active worktrees; retire only verified
+  redundant copies through Git after retaining required recovery evidence.
+- Prepare release metadata after reconciliation and validation. Present the
+  candidate for review; commits and remote publication require user authorization.
+
 ## Instruction Routing
 
 - Before promoting learnings, read the installed consolidation skill's
@@ -189,7 +210,7 @@ Follow `${HOME}/AGENTS.md` for canonical user-wide policy.
 
 ## Repository Validation
 
-- Run `markdownlint --config /Users/mmassari/.markdownlint.json` on edited Markdown files. <!-- privacy_scan: allow -->
+- Run `markdownlint --config "$HOME/.markdownlint.json"` on edited Markdown files.
 - Run `yamllint -c .yamllint` on edited YAML files.
 - Run `python3 -m py_compile` on edited Python helper scripts.
 - Run `shellcheck --enable=all` on edited shell helper scripts.
