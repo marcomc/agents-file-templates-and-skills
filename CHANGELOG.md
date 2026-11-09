@@ -8,18 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Compact the promotion workflow and helper-mode reference, retaining every
-  edit-plan field, privacy/authority boundary and integration requirement.
+## [1.4.0] - 2026-11-09
 
-- Require proportionate whole-contract coherence review for learning promotion
+### Added
+
+- Compact the promotion workflow and helper-mode reference, retaining every (LEARNING-01)
+  edit-plan field, privacy/authority boundary and integration requirement.
+- Require proportionate whole-contract coherence review for learning promotion (LEARNING-02)
   and exact hash-bound edit plans for novel rules, replacing automatic append
   with reviewed source refinement, merge, replacement or scoped additions.
-
-- Reviewed reusable Android rollback, example-config parser/privacy and Python
+- Reviewed reusable Android rollback, example-config parser/privacy and Python (LEARNING-03)
   report-boundary rules; require source, installation and generated-consumer
   verification before learning handoffs are reported integrated.
-
-- Repository-owned prompt source for the weekly reviewed template-upstream
+- Repository-owned prompt source for the weekly reviewed template-upstream (LEARNING-04)
   Codex automation.
 
 ## [1.3.0] - 2026-10-26
