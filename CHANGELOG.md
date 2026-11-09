@@ -27,7 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve configured placeholder values, including default, empty and multiline
   descriptions, when refreshing generated instructions. Update directory-derived
-  project names after renames while retaining explicit name overrides.
+  project names after renames while retaining explicit name overrides and saved
+  legacy names whose provenance was not recorded.
 - Report the missing companion skill before writing an out-of-sync report.
 
 ## [1.3.0] - 2026-10-26
